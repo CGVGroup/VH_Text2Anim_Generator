@@ -27,7 +27,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
     private int selectedModelIndex = 0;
     private string[] models = new string[] { "GMD", "MDM", "MoMask" };
     private string pythonPath = "C:\\Users\\Ciro\\AppData\\Local\\Programs\\Python\\Python310\\python.exe";
-    private string outputDir = "C:\\Users\\Ciro\\Desktop\\UnityProjects\\MasterThesisProject\\Assets\\Resources";
+    private string outputDir = "C:\\Users\\Ciro\\Desktop\\Tesi\\MasterThesis\\Assets\\Resources";
     private RequestSocket client;
     private bool isGenerating = false;
     private Process pythonServerProcess;
@@ -61,6 +61,9 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
         GUILayout.Label("Python Path", EditorStyles.boldLabel);
         pythonPath = GUILayout.TextField(pythonPath);
+
+        GUILayout.Label("Resources Directory", EditorStyles.boldLabel);
+        outputDir = GUILayout.TextField(outputDir);
 
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
