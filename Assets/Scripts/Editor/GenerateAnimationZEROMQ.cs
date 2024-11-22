@@ -26,12 +26,13 @@ public class GenerateAnimationZEROMQ : EditorWindow
     private List<AnimationClip> generatedClips;
     private int selectedModelIndex = 0;
     private string[] models = new string[] { "GMD", "MDM", "MoMask" };
-    private string pythonPath = "C:\\Users\\Ciro\\AppData\\Local\\Programs\\Python\\Python310\\python.exe";
-    private string outputDir = "C:\\Users\\Ciro\\Desktop\\Tesi\\MasterThesis\\Assets\\Resources";
+    private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
+    private string outputDir = "";
+    private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts";
     private RequestSocket client;
     private bool isGenerating = false;
     private Process pythonServerProcess;
-    private string processResponse;
+    private string processResponse = "";
     private float startTime = 0f;
     private string elapsedTimeText = "00:00";
 
@@ -45,12 +46,6 @@ public class GenerateAnimationZEROMQ : EditorWindow
         window.maxSize = new Vector2(400, 600);
         GetWindow<GenerateAnimationZEROMQ>("Generate Animation");
     }
-
-    private void OnEnable()
-    {
-        generatedClips = new List<AnimationClip>();
-    }
-
     private void OnGUI()
     {
         GUILayout.Label("Generate Animation", EditorStyles.boldLabel);
@@ -59,25 +54,12 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
         shouldUseSMPLify = EditorGUILayout.Toggle("Use SMPLify", shouldUseSMPLify);
 
-        GUILayout.Label("Python Path", EditorStyles.boldLabel);
-        pythonPath = GUILayout.TextField(pythonPath);
-
-        GUILayout.Label("Resources Directory", EditorStyles.boldLabel);
-        outputDir = GUILayout.TextField(outputDir);
+        PathGUI.OpenFileField("Python Path", ref pythonPath);
+        PathGUI.OpenFolderField("Server Path", ref pythonServerPath);
 
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
 
-        if (GUILayout.Button("Generate"))
-        {
-            UsefulShortcuts.ClearConsole();
-            StartPythonServer();
-            isGenerating = true;
-            startTime = Time.realtimeSinceStartup;
-            elapsedTimeText = "00:00";
-            Task.Run(() => Generate(promptText)).ContinueWith(t => EditorApplication.update += OnTaskCompleted);
-            EditorApplication.update += UpdateElapsedTime;
-        }
 
         if (isGenerating)
         {
@@ -86,10 +68,31 @@ public class GenerateAnimationZEROMQ : EditorWindow
             GUILayout.FlexibleSpace();
             GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
             GUILayout.EndHorizontal();
-
+            if (GUILayout.Button("Stop"))
+            {
+                TerminatePythonServer();
+                client.Close();
+                ((IDisposable)client).Dispose();
+                NetMQConfig.Cleanup();
+                isGenerating = false;
+                EditorApplication.update -= UpdateElapsedTime;
+                EditorApplication.update -= OnTaskCompleted;
+                UnityEngine.Debug.Log("Animation generation stopped!");
+            }
         }
         else
         {
+
+            if (GUILayout.Button("Generate"))
+            {
+                UsefulShortcuts.ClearConsole();
+                StartPythonServer();
+                isGenerating = true;
+                startTime = Time.realtimeSinceStartup;
+                elapsedTimeText = "00:00";
+                Task.Run(() => Generate(promptText)).ContinueWith(t => EditorApplication.update += OnTaskCompleted);
+                EditorApplication.update += UpdateElapsedTime;
+            }
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
             GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
@@ -100,6 +103,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
                 processResponse = "";
             }
             GUILayout.EndHorizontal();
+
         }
 
     }
@@ -146,7 +150,8 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
     private void StartPythonServer()
     {
-        var workingDirectory = Path.GetFullPath("C:\\Users\\Ciro\\Desktop\\UnityProjects\\MasterThesisProject\\Assets\\Scripts\\PythonScripts");
+        var workingDirectory = pythonServerPath;
+        UnityEngine.Debug.Log("Working directory: " + workingDirectory);
         pythonServerProcess = new Process
         {
             StartInfo = new ProcessStartInfo
@@ -173,6 +178,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
     {
         if (pythonServerProcess != null && !pythonServerProcess.HasExited)
         {
+            UnityEngine.Debug.Log("Terminating Python server...");
             pythonServerProcess.Kill();
             pythonServerProcess.Dispose();
             pythonServerProcess = null;
@@ -181,6 +187,13 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
     private void Generate(string promptText)
     {
+        generatedClips = new List<AnimationClip>();
+        outputDir = Path.Combine(Application.dataPath, "Resources");
+        if (!Directory.Exists(outputDir))
+        {
+            outputDir = Directory.CreateDirectory(outputDir).FullName;
+            UnityEngine.Debug.Log("Resources directory created: " + outputDir);
+        }
         string selectedModel = models[selectedModelIndex];
         AsyncIO.ForceDotNet.Force();
         client = new RequestSocket("tcp://localhost:5554");
