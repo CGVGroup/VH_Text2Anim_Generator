@@ -6,8 +6,8 @@ using NetMQ;
 using NetMQ.Sockets;
 using System.Diagnostics;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
-
 
 public class GenerateAnimationZEROMQ : EditorWindow
 {
@@ -35,6 +35,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
     private string processResponse = "";
     private float startTime = 0f;
     private string elapsedTimeText = "00:00";
+    private CancellationTokenSource cancellationTokenSource;
 
     #endregion
 
@@ -46,6 +47,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
         window.maxSize = new Vector2(400, 600);
         GetWindow<GenerateAnimationZEROMQ>("Generate Animation");
     }
+
     private void OnGUI()
     {
         GUILayout.Label("Generate Animation", EditorStyles.boldLabel);
@@ -60,29 +62,24 @@ public class GenerateAnimationZEROMQ : EditorWindow
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
 
-
         if (isGenerating)
         {
-            GUILayout.BeginHorizontal();
-            //align to right side the elapsed time
-            GUILayout.FlexibleSpace();
-            GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
-            GUILayout.EndHorizontal();
             if (GUILayout.Button("Stop"))
             {
+                cancellationTokenSource.Cancel();
                 TerminatePythonServer();
-                client.Close();
-                ((IDisposable)client).Dispose();
-                NetMQConfig.Cleanup();
                 isGenerating = false;
                 EditorApplication.update -= UpdateElapsedTime;
                 EditorApplication.update -= OnTaskCompleted;
                 UnityEngine.Debug.Log("Animation generation stopped!");
             }
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
+            GUILayout.EndHorizontal();
         }
         else
         {
-
             if (GUILayout.Button("Generate"))
             {
                 UsefulShortcuts.ClearConsole();
@@ -90,24 +87,21 @@ public class GenerateAnimationZEROMQ : EditorWindow
                 isGenerating = true;
                 startTime = Time.realtimeSinceStartup;
                 elapsedTimeText = "00:00";
-                Task.Run(() => Generate(promptText)).ContinueWith(t => EditorApplication.update += OnTaskCompleted);
+                cancellationTokenSource = new CancellationTokenSource();
+                Task.Run(() => Generate(promptText, cancellationTokenSource.Token)).ContinueWith(t => EditorApplication.update += OnTaskCompleted);
                 EditorApplication.update += UpdateElapsedTime;
             }
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
             GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
-            //EditorUtility.ClearProgressBar();
             if (processResponse != "")
             {
-                UnityEngine.Debug.Log("Animation generation completed! Details: " + processResponse);
+                UnityEngine.Debug.Log("Animation generation completed with response: " + processResponse);
                 processResponse = "";
             }
             GUILayout.EndHorizontal();
-
         }
-
     }
-
 
     private void UpdateElapsedTime()
     {
@@ -115,7 +109,8 @@ public class GenerateAnimationZEROMQ : EditorWindow
         {
             float elapsed = Time.realtimeSinceStartup - startTime;
             TimeSpan timeSpan = TimeSpan.FromSeconds(elapsed);
-            elapsedTimeText = timeSpan.ToString(@"mm\:ss"); // Formatta il tempo in minuti e secondi (mm:ss)
+            elapsedTimeText = timeSpan.ToString(@"mm\:ss");
+            //Repaint(); // Uncomment this line if the GUI is not updating but it may cause slowdowns
         }
         else
         {
@@ -147,7 +142,6 @@ public class GenerateAnimationZEROMQ : EditorWindow
         }
     }
 
-
     private void StartPythonServer()
     {
         var workingDirectory = pythonServerPath;
@@ -156,8 +150,8 @@ public class GenerateAnimationZEROMQ : EditorWindow
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = pythonPath, // Insert your python path here
-                Arguments = @"zeromq_server.py", // Insert your server script here
+                FileName = pythonPath,
+                Arguments = @"zeromq_server.py",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -185,7 +179,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
         }
     }
 
-    private void Generate(string promptText)
+    private void Generate(string promptText, CancellationToken cancellationToken)
     {
         generatedClips = new List<AnimationClip>();
         outputDir = Path.Combine(Application.dataPath, "Resources");
@@ -200,7 +194,6 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
         try
         {
-            // Invia il prompt e il modello selezionato al server Python
             var messageObj = new JsonMessage
             {
                 prompt = promptText,
@@ -213,23 +206,20 @@ public class GenerateAnimationZEROMQ : EditorWindow
             UnityEngine.Debug.Log("Generating animation for: " + promptText + ". Please wait...");
             client.SendFrame(message);
 
-            if (client.TryReceiveFrameString(TimeSpan.FromSeconds(350), out string response))
+            while (!cancellationToken.IsCancellationRequested)
             {
-                EditorApplication.delayCall += () => UsefulShortcuts.ClearConsole();
-                processResponse = response;
-            }
-            else
-            {
-                UnityEngine.Debug.LogError("Timeout or no response from server");
-                if (client != null)
+                if (client.TryReceiveFrameString(TimeSpan.FromSeconds(1), out string response))
                 {
-                    TerminatePythonServer();
-                    client.Close();
-                    ((IDisposable)client).Dispose();
-                    NetMQConfig.Cleanup();
+                    EditorApplication.delayCall += () => UsefulShortcuts.ClearConsole();
+                    processResponse = response;
+                    break;
                 }
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                UnityEngine.Debug.LogWarning("Animation generation was cancelled.");
+            }
         }
         catch (Exception ex)
         {
@@ -239,13 +229,12 @@ public class GenerateAnimationZEROMQ : EditorWindow
         {
             if (client != null)
             {
-                TerminatePythonServer();
                 client.Close();
                 ((IDisposable)client).Dispose();
                 NetMQConfig.Cleanup();
             }
+            TerminatePythonServer();
         }
-
     }
 
     private string GetNewDirectory(string outputDir, string promptText)
@@ -291,10 +280,8 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
     private void ConfigureModelImporter(ModelImporter modelImporter, string assetPath)
     {
-        // Configurazione del model importer per l'animazione
         modelImporter.animationType = ModelImporterAnimationType.Human;
 
-        // Applica le modifiche al modello e aggiorna l'asset
         SerializedObject so = new SerializedObject(modelImporter);
         so.ApplyModifiedProperties();
         AssetDatabase.ImportAsset(modelImporter.assetPath, ImportAssetOptions.ForceUpdate);
