@@ -11,7 +11,6 @@ socket = context.socket(zmq.REP)
 socket.bind("tcp://*:5554", )  # Port to receive messages from Unity
 
 def execute_model(prompt, model, output_dir, use_smplify):
-    # Activate Conda and run the selected model
     try:
         env_paths = {
             "MDM": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\motion-diffusion-model",
@@ -20,7 +19,6 @@ def execute_model(prompt, model, output_dir, use_smplify):
         }
         working_directory = env_paths.get(model, "")
         
-        # Ensure the requested model is found
         if not working_directory:
             return f"Error: model '{model}' not found."
 
@@ -28,38 +26,42 @@ def execute_model(prompt, model, output_dir, use_smplify):
         smplPath = "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMPL-to-FBX"
         os.makedirs(new_dir, exist_ok=True)
         newDir = prompt.replace(" ", "_")
-        inputFilePath = output_dir + "\\" + newDir + "\\results.npy"
+        inputFilePath = os.path.join(output_dir, newDir, "results.npy")
         bvh2fbxConvertCommand = "python .\\bvh2fbx\\convert_fbx.py -- "
 
-        # Command to run the model
-        command = ""
-        if use_smplify:
-            logging.info("Using SMPLify-X")
-            if model == "GMD":
-                command = f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" && python -m visualize.render_mesh --input_path {output_dir}\\{newDir}\\sample00.mp4 && cd {smplPath} && conda activate smpl2fbx && python Convert.py --input_pkl_base {output_dir}\\{newDir}\\sample00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {output_dir}\\{newDir}"
-            elif model == "MDM":
-                command = f"conda activate mdm && python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{prompt}\" --output_dir {new_dir} && python -m visualize.render_mesh --input_path {output_dir}\\{newDir}\\sample00_rep00.mp4 && cd {smplPath} && conda activate smpl2fbx && python Convert.py --input_pkl_base {output_dir}\\{newDir}\\sample00_rep00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {output_dir}\\{newDir}"
-            elif model == "MoMask":
-                logging.info("MoMask does not support SMPLify-X")
-                return "Error: MoMask does not support SMPLify-X"
-        else:    
-            if model == "GMD":
-                command = f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
-            elif model == "MDM":
-                command = f"conda activate mdm && python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{prompt}\" --output_dir {new_dir} && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
-            elif model == "MoMask":
-                command = f"conda activate momask && python gen_t2m.py --gpu_id 0 --ext {new_dir} --text_prompt \"{prompt}\" && move {output_dir}\\{newDir}\\animations\\0\\*.bvh {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_ik.bvh"
+        command = build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand)
         
         logging.info(f"Executing command: {command}")
         
-        # Run the command to launch the model
         process = subprocess.run(command, shell=True, cwd=working_directory, capture_output=True, text=True)
         
-        # Return the output
         return process.stdout if process.returncode == 0 else process.stderr
     except Exception as e:
         logging.error(f"Error during execution: {str(e)}")
         return f"Error during execution: {str(e)}"
+
+def build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand):
+    if use_smplify:
+        return build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath)
+    else:
+        return build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand)
+
+def build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath):
+    if model == "GMD":
+        return f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" && python -m visualize.render_mesh --input_path {output_dir}\\{newDir}\\sample00.mp4 && cd {smplPath} && conda activate smpl2fbx && python Convert.py --input_pkl_base {output_dir}\\{newDir}\\sample00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {output_dir}\\{newDir} --animation_name {newDir}"
+    elif model == "MDM":
+        return f"conda activate mdm && python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{prompt}\" --output_dir {new_dir} && python -m visualize.render_mesh --input_path {output_dir}\\{newDir}\\sample00_rep00.mp4 && cd {smplPath} && conda activate smpl2fbx && python Convert.py --input_pkl_base {output_dir}\\{newDir}\\sample00_rep00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {output_dir}\\{newDir} --animation_name {newDir}"
+    elif model == "MoMask":
+        logging.info("MoMask does not support SMPLify-X")
+        return "Error: MoMask does not support SMPLify-X"
+
+def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand):
+    if model == "GMD":
+        return f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
+    elif model == "MDM":
+        return f"conda activate mdm && python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{prompt}\" --output_dir {new_dir} && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
+    elif model == "MoMask":
+        return f"conda activate momask && python gen_t2m.py --gpu_id 0 --ext {new_dir} --text_prompt \"{prompt}\" && move {output_dir}\\{newDir}\\animations\\0\\*.bvh {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_ik.bvh"
 
 while True:
     try:
