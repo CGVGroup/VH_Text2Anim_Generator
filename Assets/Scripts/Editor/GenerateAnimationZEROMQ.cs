@@ -79,7 +79,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
             shouldUseSMPLify = false;
             EditorGUILayout.PrefixLabel("Iterations", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox("The number of iterations is the number of times the IK solver will be run to convert the animation. The higher the number, the more accurate the animation will be but it will take longer to generate.", MessageType.Info);
-            iterations = EditorGUILayout.IntSlider(iterations, 1, 1000);
+            iterations = EditorGUILayout.IntSlider(iterations, 1, 100);
         }
 
         GUILayout.Space(10);
