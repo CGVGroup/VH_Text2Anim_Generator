@@ -10,7 +10,7 @@ context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind("tcp://*:5554", )  # Port to receive messages from Unity
 
-def execute_model(prompt, model, output_dir, use_smplify):
+def execute_model(prompt, model, output_dir, use_smplify, iterations=100):
     try:
         env_paths = {
             "MDM": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\motion-diffusion-model",
@@ -29,7 +29,7 @@ def execute_model(prompt, model, output_dir, use_smplify):
         inputFilePath = os.path.join(output_dir, newDir, "results.npy")
         bvh2fbxConvertCommand = "python .\\bvh2fbx\\convert_fbx.py -- "
 
-        command = build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand)
+        command = build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand, iterations)
         
         logging.info(f"Executing command: {command}")
         
@@ -40,11 +40,11 @@ def execute_model(prompt, model, output_dir, use_smplify):
         logging.error(f"Error during execution: {str(e)}")
         return f"Error during execution: {str(e)}"
 
-def build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand):
+def build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand, iterations):
     if use_smplify:
         return build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath)
     else:
-        return build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand)
+        return build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand, iterations)
 
 def build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath):
     if model == "GMD":
@@ -55,13 +55,13 @@ def build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath):
         logging.info("MoMask does not support SMPLify-X")
         return "Error: MoMask does not support SMPLify-X"
 
-def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand):
+def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand, iterations):
     if model == "GMD":
-        return f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
+        return f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
     elif model == "MDM":
-        return f"conda activate mdm && python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{prompt}\" --output_dir {new_dir} && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
+        return f"conda activate mdm && python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{prompt}\" --output_dir {new_dir} && python .\\smpl2bvh.py --prompt \"{prompt}\" --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_2.bvh"
     elif model == "MoMask":
-        return f"conda activate momask && python gen_t2m.py --gpu_id 0 --ext {new_dir} --text_prompt \"{prompt}\" && move {output_dir}\\{newDir}\\animations\\0\\*.bvh {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_ik.bvh"
+        return f"conda activate momask && python gen_t2m.py --gpu_id 0 --ext {new_dir} --text_prompt \"{prompt}\" --iterations {iterations} && move {output_dir}\\{newDir}\\animations\\0\\*.bvh {output_dir}\\{newDir} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\{newDir}_ik.bvh"
 
 while True:
     try:
@@ -71,11 +71,12 @@ while True:
         model = message.get("model", "GMD")
         output_dir = message.get("output_dir", "default_output_path")
         use_smplify = message.get("use_smplify", False)
+        iterations = message.get("iterations", 1)
 
         # logging.info(f"Received request: model={model}, prompt={prompt}, output_dir={output_dir}, use_smplify={use_smplify}")
 
         # Execute the model with the specified parameters
-        result = execute_model(prompt, model, output_dir, use_smplify)
+        result = execute_model(prompt, model, output_dir, use_smplify, iterations)
         
         # Send the result back to Unity
         socket.send_string(result)

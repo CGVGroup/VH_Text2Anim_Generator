@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.CodeDom;
 
 public class GenerateAnimationZEROMQ : EditorWindow
 {
@@ -19,13 +20,17 @@ public class GenerateAnimationZEROMQ : EditorWindow
         public string model;
         public string output_dir;
         public bool use_smplify;
+        public int iterations;
     }
 
     private string promptText = "Enter the prompt text here";
-    private bool shouldUseSMPLify = true;
-    private List<AnimationClip> generatedClips;
+    private bool shouldUseSMPLify = false;
+    private int iterations = 100;
+    //private List<AnimationClip> generatedClips;
     private int selectedModelIndex = 0;
+    private int selectedConvertingIndex = 0;
     private string[] models = new string[] { "GMD", "MDM", "MoMask" };
+    private string[] convertingOptions = new string[] { "SMPLify", "IK Solver" };
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
     private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts";
@@ -36,7 +41,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
     private float startTime = 0f;
     private string elapsedTimeText = "00:00";
     private CancellationTokenSource cancellationTokenSource;
-
+    private bool showPaths = false;
     #endregion
 
     [MenuItem("Window/Generate Animation ZEROMQ")]
@@ -54,17 +59,36 @@ public class GenerateAnimationZEROMQ : EditorWindow
         GUILayout.Label("Insert prompt:", EditorStyles.boldLabel);
         promptText = GUILayout.TextArea(promptText, GUILayout.Height(100));
 
-        shouldUseSMPLify = EditorGUILayout.Toggle("Use SMPLify", shouldUseSMPLify);
+        showPaths = EditorGUILayout.Foldout(showPaths, "Working Paths");
+        if (showPaths)
+        {
+            // add space
+            PathGUI.OpenFileField("Python Path", ref pythonPath);
+            PathGUI.OpenFolderField("Server Path", ref pythonServerPath);
+        }
 
-        PathGUI.OpenFileField("Python Path", ref pythonPath);
-        PathGUI.OpenFolderField("Server Path", ref pythonServerPath);
+        GUILayout.Space(10);
+        EditorGUILayout.PrefixLabel("Converting Method", EditorStyles.boldLabel);
+        selectedConvertingIndex = EditorGUILayout.Popup(selectedConvertingIndex, convertingOptions);
+        if (selectedConvertingIndex == 0)
+        {
+            shouldUseSMPLify = true;
+        }
+        else
+        {
+            shouldUseSMPLify = false;
+            EditorGUILayout.PrefixLabel("Iterations", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("The number of iterations is the number of times the IK solver will be run to convert the animation. The higher the number, the more accurate the animation will be but it will take longer to generate.", MessageType.Info);
+            iterations = EditorGUILayout.IntSlider(iterations, 1, 1000);
+        }
 
+        GUILayout.Space(10);
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
 
         if (isGenerating)
         {
-            if (GUILayout.Button("Stop"))
+            if (GUILayout.Button("STOP"))
             {
                 cancellationTokenSource.Cancel();
                 TerminatePythonServer();
@@ -80,6 +104,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
         }
         else
         {
+            GUILayout.Space(5);
             if (GUILayout.Button("Generate"))
             {
                 UsefulShortcuts.ClearConsole();
@@ -128,10 +153,17 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
             string newDir = GetNewDirectory(outputDir, promptText);
             string[] files = Directory.GetFiles(newDir, "*.fbx", SearchOption.AllDirectories);
-            generatedClips.Clear();
             foreach (string file in files)
             {
-                GenerateClips(file);
+                ModelImporter modelImporter = AssetImporter.GetAtPath(file) as ModelImporter;
+                if (modelImporter != null)
+                {
+                    ConfigureModelImporter(modelImporter, file);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("ModelImporter is null for: " + file);
+                }
             }
             DeleteAll(newDir);
             isGenerating = false;
@@ -181,7 +213,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
 
     private void Generate(string promptText, CancellationToken cancellationToken)
     {
-        generatedClips = new List<AnimationClip>();
+        //generatedClips = new List<AnimationClip>();
         outputDir = Path.Combine(Application.dataPath, "Resources");
         if (!Directory.Exists(outputDir))
         {
@@ -199,7 +231,8 @@ public class GenerateAnimationZEROMQ : EditorWindow
                 prompt = promptText,
                 model = selectedModel,
                 output_dir = outputDir,
-                use_smplify = shouldUseSMPLify
+                use_smplify = shouldUseSMPLify,
+                iterations = iterations
             };
 
             var message = JsonUtility.ToJson(messageObj);
@@ -249,8 +282,9 @@ public class GenerateAnimationZEROMQ : EditorWindow
         string[] dirs = Directory.GetDirectories(path, "*.*", SearchOption.AllDirectories);
         foreach (string file in files)
         {
-            if (!file.Contains(".anim"))
+            if (!file.Contains(".anim") && !file.Contains(".fbx"))
             {
+                UnityEngine.Debug.Log("Deleting file: " + file);
                 File.Delete(file);
             }
         }
@@ -270,7 +304,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
         if (modelImporter != null)
         {
             ConfigureModelImporter(modelImporter, assetPath);
-            CreateAnimationClip(assetPath, modelImporter);
+            //CreateAnimationClip(assetPath, modelImporter);
         }
         else
         {
@@ -287,17 +321,17 @@ public class GenerateAnimationZEROMQ : EditorWindow
         AssetDatabase.ImportAsset(modelImporter.assetPath, ImportAssetOptions.ForceUpdate);
     }
 
-    private void CreateAnimationClip(string assetPath, ModelImporter modelImporter)
-    {
-        AnimationClip origClip = (AnimationClip)AssetDatabase.LoadAssetAtPath(assetPath, typeof(AnimationClip));
-        AnimationClip newClip = new AnimationClip();
-        EditorUtility.CopySerialized(origClip, newClip);
-        AssetDatabase.CreateAsset(newClip, assetPath.Replace(".fbx", "") + ".anim");
-        AssetDatabase.Refresh();
+    // private void CreateAnimationClip(string assetPath, ModelImporter modelImporter)
+    // {
+    //     AnimationClip origClip = (AnimationClip)AssetDatabase.LoadAssetAtPath(assetPath, typeof(AnimationClip));
+    //     AnimationClip newClip = new AnimationClip();
+    //     EditorUtility.CopySerialized(origClip, newClip);
+    //     AssetDatabase.CreateAsset(newClip, assetPath.Replace(".fbx", "") + ".anim");
+    //     AssetDatabase.Refresh();
 
-        if (generatedClips != null)
-        {
-            generatedClips.Add(newClip);
-        }
-    }
+    //     if (generatedClips != null)
+    //     {
+    //         generatedClips.Add(newClip);
+    //     }
+    // }
 }
