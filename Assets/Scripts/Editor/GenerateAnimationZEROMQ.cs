@@ -29,7 +29,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
     //private List<AnimationClip> generatedClips;
     private int selectedModelIndex = 0;
     private int selectedConvertingIndex = 0;
-    private string[] models = new string[] { "GMD", "MDM", "MoMask" };
+    private string[] models = new string[] { "GMD", "MDM", "MoMask", "OmniControl" };
     private string[] convertingOptions = new string[] { "SMPLify", "IK Solver" };
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
