@@ -9,6 +9,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.CodeDom;
+using UnityEditor.Animations;
 
 public class GenerateAnimationZEROMQ : EditorWindow
 {
@@ -21,6 +22,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
         public string output_dir;
         public bool use_smplify;
         public int iterations;
+        public float motion_length;
     }
 
     private string promptText = "Enter the prompt text here";
@@ -31,6 +33,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
     private int selectedConvertingIndex = 0;
     private string[] models = new string[] { "GMD", "MDM", "MoMask", "OmniControl" };
     private string[] convertingOptions = new string[] { "SMPLify", "IK Solver" };
+    private float motion_length = 1.0f;
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
     private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts";
@@ -85,6 +88,12 @@ public class GenerateAnimationZEROMQ : EditorWindow
         GUILayout.Space(10);
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
+
+        GUILayout.Space(10);
+        if(models[selectedModelIndex] == "GMD")
+            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 1f, 6f);
+        else
+            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 1f, 9.8f);
 
         if (isGenerating)
         {
@@ -165,7 +174,7 @@ public class GenerateAnimationZEROMQ : EditorWindow
                     UnityEngine.Debug.LogError("ModelImporter is null for: " + file);
                 }
             }
-            DeleteAll(newDir);
+            //DeleteAll(newDir);
             isGenerating = false;
         }
         catch (Exception e)
@@ -177,7 +186,6 @@ public class GenerateAnimationZEROMQ : EditorWindow
     private void StartPythonServer()
     {
         var workingDirectory = pythonServerPath;
-        UnityEngine.Debug.Log("Working directory: " + workingDirectory);
         pythonServerProcess = new Process
         {
             StartInfo = new ProcessStartInfo
@@ -232,7 +240,8 @@ public class GenerateAnimationZEROMQ : EditorWindow
                 model = selectedModel,
                 output_dir = outputDir,
                 use_smplify = shouldUseSMPLify,
-                iterations = iterations
+                iterations = iterations,
+                motion_length = motion_length
             };
 
             var message = JsonUtility.ToJson(messageObj);
@@ -284,7 +293,6 @@ public class GenerateAnimationZEROMQ : EditorWindow
         {
             if (!file.Contains(".anim") && !file.Contains(".fbx"))
             {
-                UnityEngine.Debug.Log("Deleting file: " + file);
                 File.Delete(file);
             }
         }
@@ -305,11 +313,17 @@ public class GenerateAnimationZEROMQ : EditorWindow
         {
             ConfigureModelImporter(modelImporter, assetPath);
             //CreateAnimationClip(assetPath, modelImporter);
+            //ApplyAndRecordClip(clip);
         }
         else
         {
             UnityEngine.Debug.LogError("ModelImporter is null for: " + assetPath);
         }
+    }
+
+    private void ApplyAndRecordClip(AnimationClip clip)
+    {
+
     }
 
     private void ConfigureModelImporter(ModelImporter modelImporter, string assetPath)
@@ -321,17 +335,13 @@ public class GenerateAnimationZEROMQ : EditorWindow
         AssetDatabase.ImportAsset(modelImporter.assetPath, ImportAssetOptions.ForceUpdate);
     }
 
-    // private void CreateAnimationClip(string assetPath, ModelImporter modelImporter)
-    // {
-    //     AnimationClip origClip = (AnimationClip)AssetDatabase.LoadAssetAtPath(assetPath, typeof(AnimationClip));
-    //     AnimationClip newClip = new AnimationClip();
-    //     EditorUtility.CopySerialized(origClip, newClip);
-    //     AssetDatabase.CreateAsset(newClip, assetPath.Replace(".fbx", "") + ".anim");
-    //     AssetDatabase.Refresh();
-
-    //     if (generatedClips != null)
-    //     {
-    //         generatedClips.Add(newClip);
-    //     }
-    // }
+    private void CreateAnimationClip(string assetPath, ModelImporter modelImporter)
+    {
+        AnimationClip origClip = (AnimationClip)AssetDatabase.LoadAssetAtPath(assetPath, typeof(AnimationClip));
+        AnimationClip newClip = new AnimationClip();
+        EditorUtility.CopySerialized(origClip, newClip);
+        AssetDatabase.CreateAsset(newClip, assetPath.Replace(".fbx", "") + ".anim");
+        AssetDatabase.Refresh();
+        //return newClip;
+    }
 }
