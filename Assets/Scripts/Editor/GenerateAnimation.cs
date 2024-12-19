@@ -1,82 +1,311 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using NetMQ;
+using NetMQ.Sockets;
 using System.Diagnostics;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEditor.Animations;
+using UnityEditor.Recorder;
+using UnityEditor.Recorder.Input;
+using System.Collections.Generic;
 
 public class GenerateAnimation : EditorWindow
 {
-    private string promptText = "Enter the prompt text here";
-    private bool shouldUseSMPLify = true;
-    private List<AnimationClip> generatedClips;
-    private string activateBatPath = "C:\\Users\\Ciro\\anaconda3\\Scripts\\activate.bat";
-    private int selectedModelIndex = 0;
-    private string[] models = new string[] { "GMD", "MDM", "MoMask" };
+    #region Variables
+    [Serializable]
+    private class JsonMessage
+    {
+        public string prompt;
+        public string model;
+        public string output_dir;
+        public bool use_smplify;
+        public int iterations;
+        public float motion_length;
+    }
 
-    [MenuItem("Window/Generate Animation")]
+    private string promptText = "Enter the prompt text here";
+    private bool shouldUseSMPLify = false;
+    private int iterations = 100;
+    //private List<AnimationClip> generatedClips;
+    private int selectedModelIndex = 0;
+    private int selectedConvertingIndex = 0;
+    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff" };
+    private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
+    private float motion_length = 3.0f;
+    private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
+    private string outputDir = "";
+    private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts";
+    private RequestSocket client;
+    private bool isGenerating = false;
+    private Process pythonServerProcess;
+    private string processResponse = "";
+    private float startTime = 0f;
+    private string elapsedTimeText = "00:00";
+    private CancellationTokenSource cancellationTokenSource;
+    private bool showPaths = false;
+    private List<AnimationClip> generatedClips;
+    #endregion
+
+    #region References
+    [SerializeField] private Animator animator;
+    #endregion
+
+    [MenuItem("AI generation/Generate Animation")]
     public static void ShowWindow()
     {
         GenerateAnimation window = (GenerateAnimation)EditorWindow.GetWindow(typeof(GenerateAnimation));
         window.minSize = new Vector2(400, 600);
-        window.maxSize = new Vector2(400, 600);
+        window.maxSize = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
         GetWindow<GenerateAnimation>("Generate Animation");
     }
 
-    private void OnEnable()
-    {
+    private void Awake()
+    { // Temporary reference to record the animations in the scene
+        //TO BE REMOVED
+        animator = FindObjectOfType<Animator>();
         generatedClips = new List<AnimationClip>();
     }
 
     private void OnGUI()
     {
         GUILayout.Label("Generate Animation", EditorStyles.boldLabel);
-        GUILayout.BeginHorizontal();
-        GUILayout.FlexibleSpace();
         GUILayout.Label("Insert prompt:", EditorStyles.boldLabel);
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
         promptText = GUILayout.TextArea(promptText, GUILayout.Height(100));
 
-        shouldUseSMPLify = EditorGUILayout.Toggle("Better conversion (may take few more minutes)", shouldUseSMPLify);
+        showPaths = EditorGUILayout.Foldout(showPaths, "Working Paths");
+        if (showPaths)
+        {
+            // add space
+            PathGUI.OpenFileField("Python Path", ref pythonPath);
+            PathGUI.OpenFolderField("Server Path", ref pythonServerPath);
+        }
 
-        GUILayout.Label("Conda Path", EditorStyles.boldLabel);
-        activateBatPath = GUILayout.TextField(activateBatPath);
+        GUILayout.Space(10);
+        EditorGUILayout.PrefixLabel("Converting Method", EditorStyles.boldLabel);
+        selectedConvertingIndex = EditorGUILayout.Popup(selectedConvertingIndex, convertingOptions);
+        if (convertingOptions[selectedConvertingIndex] == "SMPLify")
+        {
+            shouldUseSMPLify = true;
+        }
+        else
+        {
+            shouldUseSMPLify = false;
+            EditorGUILayout.PrefixLabel("Iterations", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("The number of iterations is the number of times the IK solver will be run to convert the animation. The higher the number, the more accurate the animation will be but it will take longer to generate.", MessageType.Info);
+            iterations = EditorGUILayout.IntSlider(iterations, 1, 500);
+        }
 
+        GUILayout.Space(10);
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
 
-        if (GUILayout.Button("Generate"))
+        GUILayout.Space(10);
+        if (models[selectedModelIndex] == "GMD")
         {
-            Generate(promptText);
+            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 6f);
+            EditorGUILayout.HelpBox("The motion length is the duration of the generated animation in seconds. If 0, the animation will have the default length for that model", MessageType.Info);
+        }
+        else if (models[selectedModelIndex] == "T2M-GPT")
+            EditorGUILayout.HelpBox("You can NOT control the motion length using GPT", MessageType.Info);
+        else
+        {
+            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 9.8f);
+            EditorGUILayout.HelpBox("The motion length is the duration of the generated animation in seconds. If 0, the animation will have the default length for that model", MessageType.Info);
+        }
+
+
+
+        if (isGenerating)
+        {
+            if (GUILayout.Button("STOP"))
+            {
+                cancellationTokenSource.Cancel();
+                TerminatePythonServer();
+                isGenerating = false;
+                EditorApplication.update -= UpdateElapsedTime;
+                EditorApplication.update -= OnTaskCompleted;
+                UnityEngine.Debug.Log("Animation generation stopped!");
+            }
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
+            GUILayout.EndHorizontal();
+        }
+        else
+        {
+            GUILayout.Space(5);
+            if (GUILayout.Button("Generate"))
+            {
+                UsefulShortcuts.ClearConsole();
+                StartPythonServer();
+                isGenerating = true;
+                startTime = Time.realtimeSinceStartup;
+                elapsedTimeText = "00:00";
+                cancellationTokenSource = new CancellationTokenSource();
+                Task.Run(() => Generate(promptText, cancellationTokenSource.Token)).ContinueWith(t => EditorApplication.update += OnTaskCompleted);
+                EditorApplication.update += UpdateElapsedTime;
+            }
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Elapsed Time: " + elapsedTimeText, EditorStyles.boldLabel);
+            if (processResponse != "")
+            {
+                UnityEngine.Debug.Log("Animation generation completed with response: " + processResponse);
+                processResponse = "";
+            }
+            GUILayout.EndHorizontal();
         }
     }
 
-    private void Generate(string promptText = "")
+    private void UpdateElapsedTime()
     {
-        string outputDir = "C:\\Users\\Ciro\\Desktop\\UnityProjects\\MasterThesisProject\\Assets\\Resources";
+        if (isGenerating)
+        {
+            float elapsed = Time.realtimeSinceStartup - startTime;
+            TimeSpan timeSpan = TimeSpan.FromSeconds(elapsed);
+            elapsedTimeText = timeSpan.ToString(@"mm\:ss");
+            //Repaint(); // Uncomment this line if the GUI is not updating but it may cause slowdowns
+        }
+        else
+        {
+            EditorApplication.update -= UpdateElapsedTime;
+        }
+    }
+
+    private void OnTaskCompleted()
+    {
+        EditorApplication.update -= OnTaskCompleted;
+        EditorApplication.update -= UpdateElapsedTime;
+        try
+        {
+            AssetDatabase.Refresh();
+
+            string newDir = GetNewDirectory(outputDir, promptText);
+            string[] files = Directory.GetFiles(newDir, "*.fbx", SearchOption.AllDirectories);
+            foreach (string file in files)
+            {
+                ModelImporter modelImporter = AssetImporter.GetAtPath(file) as ModelImporter;
+                if (modelImporter != null)
+                {
+                    //ConfigureModelImporter(modelImporter, file);
+                    GenerateClips(file);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("ModelImporter is null for: " + file);
+                }
+            }
+            // foreach (AnimationClip clip in generatedClips)
+            // {
+            //     ApplyAndRecordClip(clip);
+            // }
+            DeleteAll(newDir);
+            generatedClips.Clear();
+            isGenerating = false;
+        }
+        catch (Exception e)
+        {
+            UnityEngine.Debug.LogError(e.Message);
+        }
+    }
+
+    private void StartPythonServer()
+    {
+        var workingDirectory = pythonServerPath;
+        pythonServerProcess = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = pythonPath,
+                Arguments = @"zeromq_server.py",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = workingDirectory
+            }
+        };
+
+        pythonServerProcess.OutputDataReceived += (sender, args) => UnityEngine.Debug.Log("Server: " + args.Data);
+        pythonServerProcess.ErrorDataReceived += (sender, args) => UnityEngine.Debug.LogWarning("Server Warning: " + args.Data);
+
+        pythonServerProcess.Start();
+        pythonServerProcess.BeginOutputReadLine();
+        pythonServerProcess.BeginErrorReadLine();
+    }
+
+    private void TerminatePythonServer()
+    {
+        if (pythonServerProcess != null && !pythonServerProcess.HasExited)
+        {
+            UnityEngine.Debug.Log("Terminating Python server...");
+            pythonServerProcess.Kill();
+            pythonServerProcess.Dispose();
+            pythonServerProcess = null;
+        }
+    }
+
+    private void Generate(string promptText, CancellationToken cancellationToken)
+    {
+        //generatedClips = new List<AnimationClip>();
+        outputDir = Path.Combine(Application.dataPath, "Resources");
+        if (!Directory.Exists(outputDir))
+        {
+            outputDir = Directory.CreateDirectory(outputDir).FullName;
+            UnityEngine.Debug.Log("Resources directory created: " + outputDir);
+        }
         string selectedModel = models[selectedModelIndex];
-        if (selectedModel == "GMD")
-            GMD(promptText, outputDir);
-        else if (selectedModel == "MDM")
-            MDM(promptText, outputDir);
-        else if (selectedModel == "MoMask")
-            MoMask(promptText, outputDir);
+        AsyncIO.ForceDotNet.Force();
+        client = new RequestSocket("tcp://localhost:5554");
 
-        if (shouldUseSMPLify)
+        try
         {
-            ConvertToFbx(promptText, outputDir);
-        }
-        AssetDatabase.Refresh();
+            var messageObj = new JsonMessage
+            {
+                prompt = promptText,
+                model = selectedModel,
+                output_dir = outputDir,
+                use_smplify = shouldUseSMPLify,
+                iterations = iterations,
+                motion_length = motion_length
+            };
 
-        string newDir = GetNewDirectory(outputDir, promptText);
-        string[] files = Directory.GetFiles(newDir, "*.fbx", SearchOption.AllDirectories);
-        foreach (string file in files)
-        {
-            UnityEngine.Debug.Log("Searching for: " + file);
-            GenerateClips(file);
+            var message = JsonUtility.ToJson(messageObj);
+            UnityEngine.Debug.Log("Generating animation for: " + promptText + ". Please wait...");
+            client.SendFrame(message);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (client.TryReceiveFrameString(TimeSpan.FromSeconds(1), out string response))
+                {
+                    //EditorApplication.delayCall += () => UsefulShortcuts.ClearConsole();
+                    processResponse = response;
+                    break;
+                }
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                UnityEngine.Debug.LogWarning("Animation generation was cancelled.");
+            }
         }
-        DeleteAll(newDir);
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError("Exception: " + ex.Message);
+        }
+        finally
+        {
+            if (client != null)
+            {
+                client.Close();
+                ((IDisposable)client).Dispose();
+                NetMQConfig.Cleanup();
+            }
+            TerminatePythonServer();
+        }
     }
 
     private string GetNewDirectory(string outputDir, string promptText)
@@ -91,20 +320,17 @@ public class GenerateAnimation : EditorWindow
         string[] dirs = Directory.GetDirectories(path, "*.*", SearchOption.AllDirectories);
         foreach (string file in files)
         {
-            if (!file.Contains(".anim"))
+            if (!file.Contains(".anim") && !file.Contains(".fbx"))
             {
-                //UnityEngine.Debug.Log(file);
                 File.Delete(file);
             }
         }
         foreach (string dir in dirs)
         {
-            //UnityEngine.Debug.Log(dir);
-            if (!Directory.Exists(dir))
+            if (Directory.Exists(dir))
             {
-                continue;
+                Directory.Delete(dir, true);
             }
-            Directory.Delete(dir, true);
         }
         AssetDatabase.Refresh();
     }
@@ -112,10 +338,9 @@ public class GenerateAnimation : EditorWindow
     private void GenerateClips(string assetPath)
     {
         ModelImporter modelImporter = AssetImporter.GetAtPath(assetPath) as ModelImporter;
-
         if (modelImporter != null)
         {
-            ConfigureModelImporter(modelImporter);
+            ConfigureModelImporter(modelImporter, assetPath);
             CreateAnimationClip(assetPath, modelImporter);
         }
         else
@@ -124,30 +349,65 @@ public class GenerateAnimation : EditorWindow
         }
     }
 
-    private void ConfigureModelImporter(ModelImporter modelImporter)
+    private void ApplyAndRecordClip(AnimationClip clip)
     {
-        // modelImporter.animationType = ModelImporterAnimationType.Human;
-        SerializedObject so = new SerializedObject(modelImporter);
-        SerializedProperty humanDescription = so.FindProperty("m_HumanDescription");
+        animator.runtimeAnimatorController = AnimatorController.CreateAnimatorControllerAtPath("Assets/Animations/Controller.controller");
+        AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
+        AnimatorStateMachine stateMachine = controller.layers[0].stateMachine;
+        AnimatorState state = stateMachine.AddState(clip.name);
+        state.motion = clip;
+        SetRecordSettings(clip.name);
+        AssetDatabase.SaveAssets();
+
+    }
+
+    private void SetRecordSettings(string clipName = "CustomClip") //NOT WORKING
+    {
+        // Creazione di una sessione di registrazione
+        var recorderControllerSettings = ScriptableObject.CreateInstance<RecorderControllerSettings>();
+        var recorderController = new RecorderController(recorderControllerSettings);
+
+        // Creazione delle impostazioni del recorder
+        var movieRecorderSettings = ScriptableObject.CreateInstance<MovieRecorderSettings>();
+        movieRecorderSettings.name = "Video Recorder";
+        movieRecorderSettings.Enabled = true;
+
+        // Configura il formato di output
+        movieRecorderSettings.OutputFile = "Assets/Recordings/";
+        movieRecorderSettings.ImageInputSettings = new GameViewInputSettings(); // Registra dalla Game View
+        movieRecorderSettings.FileNameGenerator.FileName = clipName + "_" + models[selectedModelIndex];
+
+        // Configura la risoluzione
+        movieRecorderSettings.ImageInputSettings.OutputWidth = 1920;
+        movieRecorderSettings.ImageInputSettings.OutputHeight = 1080;
+
+        // Configura il frame rate
+        movieRecorderSettings.FrameRate = 30.0f;
+
+        // Aggiungi le impostazioni al controller
+        recorderControllerSettings.AddRecorderSettings(movieRecorderSettings);
+        recorderControllerSettings.SetRecordModeToManual();
+        RecorderWindow recorderWindow = EditorWindow.GetWindow<RecorderWindow>();
+        recorderWindow.Show();
+        recorderWindow.SetRecorderControllerSettings(recorderControllerSettings);
+
+        // Avvia la registrazione (se richiesto)
+        recorderWindow.StartRecording();
+        UnityEngine.Debug.Log("Recording started...");
+    }
+
+    bool AnimatorIsPlaying()
+    {
+        return animator.GetCurrentAnimatorStateInfo(0).length >
+               animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
+    }
+
+    private void ConfigureModelImporter(ModelImporter modelImporter, string assetPath)
+    {
         modelImporter.animationType = ModelImporterAnimationType.Human;
 
+        SerializedObject so = new SerializedObject(modelImporter);
         so.ApplyModifiedProperties();
-        AssetDatabase.WriteImportSettingsIfDirty(modelImporter.assetPath);
-        AssetDatabase.ImportAsset(modelImporter.assetPath, ImportAssetOptions.ForceUpdate);
-
-
-        ModelImporterClipAnimation[] clipAnimations = modelImporter.defaultClipAnimations;
-        foreach (ModelImporterClipAnimation clipAnimation in clipAnimations)
-        {
-            clipAnimation.loopTime = true;
-            clipAnimation.lockRootRotation = true;
-            clipAnimation.lockRootHeightY = true;
-            clipAnimation.keepOriginalPositionY = true;
-            clipAnimation.keepOriginalOrientation = true;
-        }
-        modelImporter.clipAnimations = clipAnimations;
-        so.ApplyModifiedProperties();
-        AssetDatabase.WriteImportSettingsIfDirty(modelImporter.assetPath);
         AssetDatabase.ImportAsset(modelImporter.assetPath, ImportAssetOptions.ForceUpdate);
     }
 
@@ -157,143 +417,7 @@ public class GenerateAnimation : EditorWindow
         AnimationClip newClip = new AnimationClip();
         EditorUtility.CopySerialized(origClip, newClip);
         AssetDatabase.CreateAsset(newClip, assetPath.Replace(".fbx", "") + ".anim");
+        generatedClips.Add(newClip);
         AssetDatabase.Refresh();
-
-        if (generatedClips != null)
-        {
-            generatedClips.Add(newClip);
-        }
-    }
-
-    private void GMD(string promptText = "", string outputDir = "")
-    {
-        UnityEngine.Debug.Log("GMD");
-        ExecuteProcess("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\guided-motion-diffusion", "gmd", promptText, outputDir);
-    }
-
-    private void MDM(string promptText = "", string outputDir = "")
-    {
-        UnityEngine.Debug.Log("MDM");
-        ExecuteProcess("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\motion-diffusion-model", "mdm", promptText, outputDir);
-    }
-
-    private void MoMask(string promptText = "", string outputDir = "")
-    {
-        if (!shouldUseSMPLify)
-        {
-            UnityEngine.Debug.Log("MoMask");
-            ExecuteProcess("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\momask-codes", "momask", promptText, outputDir);
-        }else{
-            UnityEngine.Debug.LogError("NOT IMPLEMENTED YET");
-        }
-    }
-
-    private void ConvertToFbx(string promptText = "", string outputDir = "")
-    {
-        ExecuteProcess("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMPL-to-FBX", "smpl2fbx", promptText, outputDir);
-    }
-
-    private void ExecuteProcess(string workingDirectory, string environment, string promptText, string outputDir)
-    {
-        var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                RedirectStandardInput = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                WorkingDirectory = workingDirectory
-            }
-        };
-        process.Start();
-
-        using (var sw = process.StandardInput)
-        {
-            if (sw.BaseStream.CanWrite)
-            {
-                sw.WriteLine(activateBatPath);
-                sw.WriteLine($"conda activate {environment}");
-                string newDir = promptText.Replace(" ", "_");
-                sw.WriteLine($"mkdir {outputDir}\\{newDir}");
-                sw.WriteLine(GetPythonCommand(environment, promptText, outputDir, newDir));
-                SetPythonConversion(sw, environment, outputDir, newDir);
-            }
-        }
-
-        while (!process.StandardOutput.EndOfStream)
-        {
-            var line = process.StandardOutput.ReadLine();
-            Console.WriteLine(line);
-            //UnityEngine.Debug.Log(line);
-        }
-    }
-
-    private string GetPythonCommand(string environment, string promptText, string outputDir, string newDir)
-    {
-        if (environment == "gmd")
-        {
-            return $"python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {outputDir}\\{newDir} --text_prompt \"{promptText}\"";
-        }
-        else if (environment == "mdm")
-        {
-            return $"python -m sample.generate --model_path ./save/humanml_enc_512_50steps/model000750000.pt --text_prompt \"{promptText}\" --output_dir {outputDir}\\{newDir}";
-        }
-        else if (environment == "momask")
-        {
-            return $"python gen_t2m.py --gpu_id 0 --ext {outputDir}\\{newDir} --text_prompt \"{promptText}\"";
-        }
-        else if (environment == "smpl2fbx")
-        {
-            if (models[selectedModelIndex] == "gmd")
-                return $"python Convert.py --input_pkl_base {outputDir}\\{newDir}\\sample00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {outputDir}";
-            else if (models[selectedModelIndex] == "mdm")
-                return $"python Convert.py --input_pkl_base {outputDir}\\{newDir}\\sample00_rep00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {outputDir}";
-            else if (models[selectedModelIndex] == "momask")
-                return $"python Convert.py --input_pkl_base {outputDir}\\{newDir}\\sample00_smpl_params.npy.pkl --fbx_source_path ./fbx/SMPL_m_unityDoubleBlends_lbs_10_scale5_207_v1.0.0.fbx --output_base {outputDir}";
-        }
-        return string.Empty;
-    }
-
-    private void SetPythonConversion(StreamWriter sw, string environment, string outputDir, string newDir)
-    {
-        string inputFilePath = $"{outputDir}\\{newDir}\\results.npy";
-        string outputDirPath = $"{outputDir}\\{newDir}";
-        string condaActivateBvh2fbx = "conda activate bvh2fbx";
-        string bvh2fbxConvertCommand = $"python .\\bvh2fbx\\convert_fbx.py -- ";
-
-        if (environment == "gmd" || environment == "mdm")
-        {
-            if (!shouldUseSMPLify)
-            {
-                sw.WriteLine($"python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {outputDirPath}");
-                sw.WriteLine(condaActivateBvh2fbx);
-                for (int i = 0; i < 3; i++)
-                {
-                    sw.WriteLine($"{bvh2fbxConvertCommand}{outputDirPath}\\anim{i}.bvh");
-                }
-            }
-            else
-            {
-                string renderMeshCommand = environment == "gmd" ?
-                    $"python -m visualize.render_mesh --input_path {outputDirPath}\\sample00.mp4" :
-                    $"python -m visualize.render_mesh --input_path {outputDirPath}\\sample00_rep00.mp4";
-                sw.WriteLine(renderMeshCommand);
-            }
-        }
-        else if (environment == "momask")
-        {
-            if (!shouldUseSMPLify)
-            {
-                sw.WriteLine($"move {outputDirPath}\\animations\\0\\*.bvh {outputDirPath}");
-                sw.WriteLine(condaActivateBvh2fbx);
-                sw.WriteLine($"{bvh2fbxConvertCommand}{outputDirPath}\\{newDir}.bvh");
-                sw.WriteLine($"{bvh2fbxConvertCommand}{outputDirPath}\\{newDir}_ik.bvh");
-            }
-            else
-            {
-                UnityEngine.Debug.LogWarning("NOT IMPLEMENTED YET");
-            }
-        }
     }
 }
