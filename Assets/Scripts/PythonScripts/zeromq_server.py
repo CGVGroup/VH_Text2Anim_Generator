@@ -12,7 +12,7 @@ socket.bind("tcp://*:5554", )  # Port to receive messages from Unity
 
 def execute_model(prompt, model, output_dir, use_smplify, iterations=100, motion_length=1):
     try:
-        env_paths = {
+        env_paths = { # insert the paths to the models here
             "MDM": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\motion-diffusion-model",
             "GMD": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\guided-motion-diffusion",
             "MoMask": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\momask-codes",

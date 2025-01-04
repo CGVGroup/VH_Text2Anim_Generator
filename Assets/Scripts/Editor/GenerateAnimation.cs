@@ -30,11 +30,11 @@ public class GenerateAnimation : EditorWindow
     private bool shouldUseSMPLify = false;
     private int iterations = 100;
     //private List<AnimationClip> generatedClips;
-    private int selectedModelIndex = 0;
+    private int selectedModelIndex = 4;
     private int selectedConvertingIndex = 0;
     private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff" };
     private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
-    private float motion_length = 3.0f;
+    private float motion_length = 0.0f;
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
     private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts";
