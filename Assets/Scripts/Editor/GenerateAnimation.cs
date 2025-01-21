@@ -24,6 +24,8 @@ public class GenerateAnimation : EditorWindow
         public bool use_smplify;
         public int iterations;
         public float motion_length;
+        public string style;
+        public string movement;
     }
 
     private string promptText = "Enter the prompt text here";
@@ -32,8 +34,13 @@ public class GenerateAnimation : EditorWindow
     //private List<AnimationClip> generatedClips;
     private int selectedModelIndex = 4;
     private int selectedConvertingIndex = 0;
-    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff" };
+    private int selectedStyleIndex = 0;
+    private int selectedMovementIndex = 0;
+    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff", "SMooDi" };
     private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
+    private string[] styles = new string[100];
+    private string[] movementType = new string[] {"Backwards Running", "Backwards Walking", "Forwards Running", "Forwards Walking", "Idling", "Sidestep Running", "Sidestep Walking", "Transitions"};
+    private string[] movementTypeConverted = new string[] {"BR", "BW", "FR", "FW", "ID", "SR", "SW", "TR1"};
     private float motion_length = 0.0f;
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
@@ -65,8 +72,15 @@ public class GenerateAnimation : EditorWindow
     private void Awake()
     { // Temporary reference to record the animations in the scene
         //TO BE REMOVED
-        animator = FindObjectOfType<Animator>();
+        // animator = FindObjectOfType<Animator>();
         generatedClips = new List<AnimationClip>();
+        // initialize the styles array reading the 100style.txt file
+        string path = "Assets/Scripts/Editor/100style.txt";
+        StreamReader reader = new StreamReader(path);
+        for (int i = 0; i < 100; i++)
+        {
+            styles[i] = reader.ReadLine();
+        }
     }
 
     private void OnGUI()
@@ -103,6 +117,16 @@ public class GenerateAnimation : EditorWindow
         selectedModelIndex = EditorGUILayout.Popup(selectedModelIndex, models);
 
         GUILayout.Space(10);
+
+        if (models[selectedModelIndex] == "SMooDi")
+        {
+            // add a popup for choosing the style motion from a txt file named 100style.txt
+            EditorGUILayout.HelpBox("You can choose the style of the motion for a style transfer.", MessageType.Info);
+            selectedStyleIndex = EditorGUILayout.Popup(selectedStyleIndex, styles);
+            selectedMovementIndex = EditorGUILayout.Popup(selectedMovementIndex, movementType);
+        }
+
+
         if (models[selectedModelIndex] == "GMD")
         {
             motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 6f);
@@ -202,7 +226,7 @@ public class GenerateAnimation : EditorWindow
             // {
             //     ApplyAndRecordClip(clip);
             // }
-            DeleteAll(newDir);
+            //DeleteAll(newDir);
             generatedClips.Clear();
             isGenerating = false;
         }
@@ -270,7 +294,9 @@ public class GenerateAnimation : EditorWindow
                 output_dir = outputDir,
                 use_smplify = shouldUseSMPLify,
                 iterations = iterations,
-                motion_length = motion_length
+                motion_length = motion_length,
+                style = styles[selectedStyleIndex],
+                movement = movementTypeConverted[selectedMovementIndex]
             };
 
             var message = JsonUtility.ToJson(messageObj);
@@ -311,7 +337,8 @@ public class GenerateAnimation : EditorWindow
     private string GetNewDirectory(string outputDir, string promptText)
     {
         string newDir = outputDir.Substring(outputDir.IndexOf("Assets"));
-        return newDir + "\\" + promptText.Replace(" ", "_");
+        //return newDir + "\\" + promptText.Replace(" ", "_");
+        return newDir + "\\results";
     }
 
     private void DeleteAll(string path)
