@@ -21,15 +21,16 @@ public class GenerateAnimation : EditorWindow
         public string prompt;
         public string model;
         public string output_dir;
-        public bool use_smplify;
+        //public bool use_smplify;
         public int iterations;
         public float motion_length;
         public string style;
         public string movement;
+        public float gss;
     }
 
     private string promptText = "Enter the prompt text here";
-    private bool shouldUseSMPLify = false;
+    //private bool shouldUseSMPLify = false;
     private int iterations = 100;
     //private List<AnimationClip> generatedClips;
     private int selectedModelIndex = 4;
@@ -37,14 +38,15 @@ public class GenerateAnimation : EditorWindow
     private int selectedStyleIndex = 0;
     private int selectedMovementIndex = 0;
     private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff", "SMooDi" };
-    private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
+    //private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
     private string[] styles = new string[100];
     private string[] movementType = new string[] {"Backwards Running", "Backwards Walking", "Forwards Running", "Forwards Walking", "Idling", "Sidestep Running", "Sidestep Walking", "Transitions"};
     private string[] movementTypeConverted = new string[] {"BR", "BW", "FR", "FW", "ID", "SR", "SW", "TR1"};
     private float motion_length = 0.0f;
+    private float guidance_scale_style = 0.0f;
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
-    private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts";
+    private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts/server.py";
     private RequestSocket client;
     private bool isGenerating = false;
     private Process pythonServerProcess;
@@ -94,23 +96,23 @@ public class GenerateAnimation : EditorWindow
         {
             // add space
             PathGUI.OpenFileField("Python Path", ref pythonPath);
-            PathGUI.OpenFolderField("Server Path", ref pythonServerPath);
+            PathGUI.OpenFileField("Server Path", ref pythonServerPath);
         }
 
-        GUILayout.Space(10);
-        EditorGUILayout.PrefixLabel("Converting Method", EditorStyles.boldLabel);
-        selectedConvertingIndex = EditorGUILayout.Popup(selectedConvertingIndex, convertingOptions);
-        if (convertingOptions[selectedConvertingIndex] == "SMPLify")
-        {
-            shouldUseSMPLify = true;
-        }
-        else
-        {
-            shouldUseSMPLify = false;
-            EditorGUILayout.PrefixLabel("Iterations", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("The number of iterations is the number of times the IK solver will be run to convert the animation. The higher the number, the more accurate the animation will be but it will take longer to generate.", MessageType.Info);
-            iterations = EditorGUILayout.IntSlider(iterations, 1, 500);
-        }
+        //GUILayout.Space(10);
+        //EditorGUILayout.PrefixLabel("Converting Method", EditorStyles.boldLabel);
+        //selectedConvertingIndex = EditorGUILayout.Popup(selectedConvertingIndex, convertingOptions);
+        // if (convertingOptions[selectedConvertingIndex] == "SMPLify")
+        // {
+        //     shouldUseSMPLify = true;
+        // }
+        //else
+        //{
+            //shouldUseSMPLify = false;
+        EditorGUILayout.PrefixLabel("IK solver iterations", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("The number of iterations is the number of times the algorithm will be run to convert the animation. The higher the number, the more accurate the animation will be but it will take longer to generate.", MessageType.Info);
+        iterations = EditorGUILayout.IntSlider(iterations, 1, 500);
+        //}
 
         GUILayout.Space(10);
         GUILayout.Label("Select Model", EditorStyles.boldLabel);
@@ -124,20 +126,22 @@ public class GenerateAnimation : EditorWindow
             EditorGUILayout.HelpBox("You can choose the style of the motion for a style transfer.", MessageType.Info);
             selectedStyleIndex = EditorGUILayout.Popup(selectedStyleIndex, styles);
             selectedMovementIndex = EditorGUILayout.Popup(selectedMovementIndex, movementType);
+            EditorGUILayout.HelpBox("You can modify the guidance scale style to achieve a better balance between content preservation and style reflection. 0 means default parameter settings", MessageType.Info);
+            guidance_scale_style = EditorGUILayout.Slider("Guidance Scale Style", guidance_scale_style, 0f, 10f);
         }
 
 
         if (models[selectedModelIndex] == "GMD")
         {
-            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 6f);
             EditorGUILayout.HelpBox("The motion length is the duration of the generated animation in seconds. If 0, the animation will have the default length for that model", MessageType.Info);
+            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 6f);
         }
         else if (models[selectedModelIndex] == "T2M-GPT")
             EditorGUILayout.HelpBox("You can NOT control the motion length using GPT", MessageType.Info);
         else
         {
-            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 9.8f);
             EditorGUILayout.HelpBox("The motion length is the duration of the generated animation in seconds. If 0, the animation will have the default length for that model", MessageType.Info);
+            motion_length = EditorGUILayout.Slider("Motion Length (sec)", motion_length, 0f, 9.8f);
         }
 
 
@@ -226,7 +230,7 @@ public class GenerateAnimation : EditorWindow
             // {
             //     ApplyAndRecordClip(clip);
             // }
-            //DeleteAll(newDir);
+            DeleteAll(newDir);
             generatedClips.Clear();
             isGenerating = false;
         }
@@ -238,13 +242,13 @@ public class GenerateAnimation : EditorWindow
 
     private void StartPythonServer()
     {
-        var workingDirectory = pythonServerPath;
+        var workingDirectory = pythonServerPath.Substring(0, pythonServerPath.LastIndexOf("/"));
         pythonServerProcess = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = pythonPath,
-                Arguments = @"zeromq_server.py",
+                Arguments = pythonServerPath,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -292,11 +296,12 @@ public class GenerateAnimation : EditorWindow
                 prompt = promptText,
                 model = selectedModel,
                 output_dir = outputDir,
-                use_smplify = shouldUseSMPLify,
+                //use_smplify = shouldUseSMPLify,
                 iterations = iterations,
                 motion_length = motion_length,
                 style = styles[selectedStyleIndex],
-                movement = movementTypeConverted[selectedMovementIndex]
+                movement = movementTypeConverted[selectedMovementIndex],
+                gss = guidance_scale_style,
             };
 
             var message = JsonUtility.ToJson(messageObj);

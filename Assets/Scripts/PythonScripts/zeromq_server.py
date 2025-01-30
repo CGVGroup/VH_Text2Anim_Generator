@@ -52,7 +52,7 @@ def random_file_selector(input_folder, output_folder, prefix, suffix):
     return "Ok"
     print(f"File selezionato: {selected_file}")
 
-def execute_model(prompt, model, output_dir, use_smplify, style, movement, iterations=100, motion_length=1):
+def execute_model(prompt, model, output_dir, use_smplify, style, movement, gss, iterations=100, motion_length=1):
     try:
         env_paths = { # insert the paths to the models here
             "MDM": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\motion-diffusion-model",
@@ -78,7 +78,7 @@ def execute_model(prompt, model, output_dir, use_smplify, style, movement, itera
         result = random_file_selector("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi\\100style", "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi\\test_motion", style, movement)
         if result != "Ok":
             return result
-        command = build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand, style, movement, iterations, motion_length)
+        command = build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand, style, movement, gss, iterations, motion_length)
         
         logging.info(f"Executing command: {command}")
         
@@ -89,11 +89,11 @@ def execute_model(prompt, model, output_dir, use_smplify, style, movement, itera
         logging.error(f"Error during execution: {str(e)}")
         return f"Error during execution: {str(e)}"
 
-def build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand, iterations, motion_length, style, movement):
+def build_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, use_smplify, smplPath, bvh2fbxConvertCommand, style, movement, gss, iterations, motion_length):
     if use_smplify:
         return build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath, motion_length)
     else:
-        return build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand, iterations, motion_length, style, movement)
+        return build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand, style, movement, gss, iterations, motion_length)
 
 def build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath, motion_length):
     
@@ -115,7 +115,7 @@ def build_smplify_command(model, prompt, new_dir, newDir, output_dir, smplPath, 
             logging.info(f"{model} does not support SMPLify-X")
             return f"Error: {model} does not support SMPLify-X"
 
-def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand, style, movement, iterations, motion_length=1):   
+def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output_dir, bvh2fbxConvertCommand, style, movement, gss, iterations, motion_length=1):   
     
     if motion_length == 0:
         if model == "GMD":
@@ -130,7 +130,7 @@ def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output
             return f"conda activate ladiff && python .\demo.py --prompt \"{prompt}\" --out_dir {new_dir} && conda activate gmd && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh"
         elif model == "SMooDi":
             result = random_file_selector("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi\\100style", "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi\\test_motion", style, movement)
-            return f"conda activate omnicontrol && python demo_cmld.py --cfg ./configs/config_cmld_humanml3d.yaml --cfg_assets ./configs/assets.yaml --prompt \"{prompt}\" --length 196 --output_dir {new_dir} && conda activate ladiff && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh"
+            return f"conda activate omnicontrol && python demo_cmld.py --cfg ./configs/config_cmld_humanml3d.yaml --guidance_scale_style {gss} --cfg_assets ./configs/assets.yaml --prompt \"{prompt}\" --length 196 --output_dir {new_dir} && conda activate ladiff && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh"
     else:
         if model == "GMD":
             return f"conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {new_dir} --text_prompt \"{prompt}\" --motion_length {motion_length} && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_1.bvh && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_2.bvh"
@@ -144,7 +144,7 @@ def build_standard_command(model, prompt, new_dir, newDir, inputFilePath, output
             return f"conda activate ladiff && python .\demo.py --prompt \"{prompt}\" --length {int(motion_length)} --out_dir {new_dir} && conda activate gmd && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh"
         elif model == "SMooDi":
             random_file_selector("C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi\\100style", "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi\\test_motion", style, movement)
-            return f"conda activate omnicontrol && python demo_cmld.py --cfg ./configs/config_cmld_humanml3d.yaml --cfg_assets ./configs/assets.yaml --prompt \"{prompt}\" --length {int(motion_length * 20)} --output_dir {new_dir} && conda activate ladiff && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh"
+            return f"conda activate omnicontrol && python demo_cmld.py --cfg ./configs/config_cmld_humanml3d.yaml --guidance_scale_style {gss} --cfg_assets ./configs/assets.yaml --prompt \"{prompt}\" --length {int(motion_length * 20)} --output_dir {new_dir} && conda activate ladiff && python .\\smpl2bvh.py --input_file {inputFilePath} --output_dir {output_dir}\\{newDir} --iterations {iterations} && conda activate bvh2fbx && {bvh2fbxConvertCommand}{output_dir}\\{newDir}\\anim_0.bvh"
 
         
 while True:
@@ -159,11 +159,12 @@ while True:
         motion_length = message.get("motion_length", 1)
         style = message.get("style", "Aeroplane")
         movement = message.get("movement", "BR")
+        gss = message.get("gss", 1.5)
 
         # logging.info(f"Received request: model={model}, prompt={prompt}, output_dir={output_dir}, use_smplify={use_smplify}")
 
         # Execute the model with the specified parameters
-        result = execute_model(prompt, model, output_dir, use_smplify, style, movement, iterations, motion_length=motion_length)
+        result = execute_model(prompt, model, output_dir, use_smplify, style, movement, gss, iterations, motion_length=motion_length)
         
         # Send the result back to Unity
         socket.send_string(result)
