@@ -34,14 +34,13 @@ public class GenerateAnimation : EditorWindow
     private int iterations = 100;
     //private List<AnimationClip> generatedClips;
     private int selectedModelIndex = 4;
-    private int selectedConvertingIndex = 0;
     private int selectedStyleIndex = 0;
     private int selectedMovementIndex = 0;
-    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff", "SMooDi" };
+    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff", "SMooDi", "AttT2M" };
     //private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
     private string[] styles = new string[100];
-    private string[] movementType = new string[] {"Backwards Running", "Backwards Walking", "Forwards Running", "Forwards Walking", "Idling", "Sidestep Running", "Sidestep Walking", "Transitions"};
-    private string[] movementTypeConverted = new string[] {"BR", "BW", "FR", "FW", "ID", "SR", "SW", "TR1"};
+    private string[] movementType = new string[] { "Backwards Running", "Backwards Walking", "Forwards Running", "Forwards Walking", "Idling", "Sidestep Running", "Sidestep Walking", "Transitions" };
+    private string[] movementTypeConverted = new string[] { "BR", "BW", "FR", "FW", "ID", "SR", "SW", "TR1" };
     private float motion_length = 0.0f;
     private float guidance_scale_style = 0.0f;
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
@@ -108,7 +107,7 @@ public class GenerateAnimation : EditorWindow
         // }
         //else
         //{
-            //shouldUseSMPLify = false;
+        //shouldUseSMPLify = false;
         EditorGUILayout.PrefixLabel("IK solver iterations", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox("The number of iterations is the number of times the algorithm will be run to convert the animation. The higher the number, the more accurate the animation will be but it will take longer to generate.", MessageType.Info);
         iterations = EditorGUILayout.IntSlider(iterations, 1, 500);
@@ -285,6 +284,13 @@ public class GenerateAnimation : EditorWindow
             outputDir = Directory.CreateDirectory(outputDir).FullName;
             UnityEngine.Debug.Log("Resources directory created: " + outputDir);
         }
+
+
+        string path = Path.Combine(outputDir + "\\results", "prompt.txt");
+        promptText = promptText.Replace("\n", " ");
+        File.WriteAllText(path, promptText);
+
+
         string selectedModel = models[selectedModelIndex];
         AsyncIO.ForceDotNet.Force();
         client = new RequestSocket("tcp://localhost:5554");
@@ -352,7 +358,7 @@ public class GenerateAnimation : EditorWindow
         string[] dirs = Directory.GetDirectories(path, "*.*", SearchOption.AllDirectories);
         foreach (string file in files)
         {
-            if (!file.Contains(".anim") && !file.Contains(".fbx"))
+            if (!file.Contains(".anim") && !file.Contains(".fbx") && !file.Contains("prompt.txt"))
             {
                 File.Delete(file);
             }
@@ -437,7 +443,11 @@ public class GenerateAnimation : EditorWindow
     private void ConfigureModelImporter(ModelImporter modelImporter, string assetPath)
     {
         modelImporter.animationType = ModelImporterAnimationType.Human;
-
+        if (models[selectedModelIndex] == "MoMask")
+        {
+            modelImporter.avatarSetup = ModelImporterAvatarSetup.CopyFromOther;
+            modelImporter.sourceAvatar = AssetDatabase.LoadAssetAtPath<Avatar>("Assets/FBXs/MoMask.fbx");
+        }
         SerializedObject so = new SerializedObject(modelImporter);
         so.ApplyModifiedProperties();
         AssetDatabase.ImportAsset(modelImporter.assetPath, ImportAssetOptions.ForceUpdate);
