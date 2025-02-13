@@ -13,69 +13,159 @@ public class RecordClip : MonoBehaviour
 {
     [SerializeField] private AnimancerComponent _Animancer;
     [SerializeField] private AnimationClip[] clips;
-    [SerializeField] private string[] model = {"LADiff", "MDM", "T2M-GPT"};
+
+    public enum Scenario
+    {
+        All,
+        Speaking,
+        Standing,
+        Walking,
+    }
+    public enum Emotion
+    {
+        All,
+        Anger,
+        Disgust,
+        Fear,
+        Happiness,
+        Sadness,
+    }
+    public enum Model
+    {
+        LADiff,
+        MDM,
+        T2MGPT,
+    }
+
+    public Model model;
+    public Scenario scenario;
+    public Emotion emotion;
+    private readonly string[] scenarios = { "Speaking", "Standing" };
+    private readonly string[] emotions = { "Anger", "Disgust", "Fear", "Happiness", "Sadness" };
+    private int _scenarioIndex = 0;
+    private int _emotionIndex = 0;
     public bool IsPlayingAnimation { get; private set; }
-    private int _index = 0;
     private RecorderWindow _recorderWindow;
+    private bool isRecordingAllEmotions = true;
+    private bool isRecordingAllScenarios = true;
+
     private void Awake()
     {
         _recorderWindow = GetRecorderWindow();
+        InitializeRecorder();
+    }
+
+    private void InitializeRecorder()
+    {
         var controllerSettings = ScriptableObject.CreateInstance<RecorderControllerSettings>();
+        var recorder = CreateRecorderSettings();
+        controllerSettings.AddRecorderSettings(recorder);
+        controllerSettings.ExitPlayMode = false;
+        _recorderWindow.SetRecorderControllerSettings(controllerSettings);
+    }
+
+    private MovieRecorderSettings CreateRecorderSettings()
+    {
         var recorder = ScriptableObject.CreateInstance<MovieRecorderSettings>();
         recorder.name = "My Video Recorder";
         recorder.Enabled = true;
         recorder.AudioInputSettings.PreserveAudio = true;
-        recorder.OutputFile = "C:\\Users\\Ciro\\Desktop\\Tesi\\MasterThesis\\Assets\\Recordings\\" + model + "_<Take>";
+        recorder.OutputFile = GetOutputFileName();
         recorder.ImageInputSettings = new GameViewInputSettings
         {
             OutputWidth = 1280,
             OutputHeight = 720,
         };
-
-        controllerSettings.AddRecorderSettings(recorder);
-        controllerSettings.ExitPlayMode = false;
-        _recorderWindow.SetRecorderControllerSettings(controllerSettings);
+        return recorder;
     }
+
+    private string GetOutputFileName()
+    {
+        return $"C:\\Users\\Ciro\\Desktop\\Tesi\\MasterThesis\\Assets\\Recordings\\{model}_{emotions[_emotionIndex]}_{scenarios[_scenarioIndex]}";
+    }
+
     private void Start()
     {
-        clips = Resources.LoadAll<AnimationClip>(model + "_BodyLanguage");
-        Debug.Log("clips.Length: " + clips.Length);
         _Animancer = GetComponent<AnimancerComponent>();
-        IsPlayingAnimation = true;
-        _recorderWindow.StartRecording();
-        AnimancerState state = _Animancer.Play(clips[_index]);
-        state.ApplyAnimatorIK = true;
-        state.ApplyFootIK = true;
-        state.Events.OnEnd = OnAnimationEnd;
+        IsPlayingAnimation = false;
+        if (emotion != Emotion.All)
+        {
+            isRecordingAllEmotions = false;
+            _emotionIndex = Array.IndexOf(emotions, emotion.ToString());
+            Debug.Log("Emozione: " + emotion.ToString() + "at " + _emotionIndex);
+        }
+
+        if (scenario != Scenario.All)
+        {
+            isRecordingAllScenarios = false;
+            _scenarioIndex = Array.IndexOf(scenarios, scenario.ToString());
+            Debug.Log("Scenario: " + scenario.ToString() + "at " + _scenarioIndex);
+        }
     }
+
     private void OnAnimationEnd()
     {
         _recorderWindow.StopRecording();
+        if (isRecordingAllEmotions)
+            _emotionIndex++;
+        else
+            _emotionIndex = emotions.Length;
         IsPlayingAnimation = false;
     }
 
     private void Update()
     {
-        if (IsPlayingAnimation == false)
+        if (!IsPlayingAnimation)
         {
-            _index++;
-            if (_index >= clips.Length)
+            if (_emotionIndex >= emotions.Length)
             {
-                // stop unity play mode
-                Debug.Log("Finito");
+                if (isRecordingAllScenarios)
+                {
+                    _scenarioIndex++;
+                    _emotionIndex = 0;
+                }
+                else
+                    _scenarioIndex = scenarios.Length;
 
-                UnityEditor.EditorApplication.isPlaying = false;
+
+                if (_scenarioIndex >= scenarios.Length)
+                {
+                    Debug.Log("Stop Unity Play Mode");
+                    EditorApplication.isPlaying = false;
+                    return;
+                }
             }
-            else
-            {
-                IsPlayingAnimation = true;
-                _recorderWindow.StartRecording();
-                AnimancerState state = _Animancer.Play(clips[_index]);
-                state.ApplyAnimatorIK = true;
-                state.ApplyFootIK = true;
-                state.Events.OnEnd = OnAnimationEnd;
-            }
+
+            PlayNextAnimation();
         }
+    }
+
+    private void PlayNextAnimation()
+    {
+
+        clips = Resources.LoadAll<AnimationClip>($"{model}_BodyLanguage\\{scenarios[_scenarioIndex]}\\{emotions[_emotionIndex]}");
+        if (clips.Length == 0)
+        {
+            Debug.LogWarning("No animation clips found for the current scenario and emotion.");
+            return;
+        }
+
+        IsPlayingAnimation = true;
+        UpdateRecorderSettings();
+        _recorderWindow.StartRecording();
+        AnimancerState state = _Animancer.Play(clips[0]);
+        state.ApplyAnimatorIK = true;
+        state.ApplyFootIK = true;
+        state.Events.OnEnd = OnAnimationEnd;
+    }
+
+    private void UpdateRecorderSettings()
+    {
+        var controllerSettings = ScriptableObject.CreateInstance<RecorderControllerSettings>();
+        var recorder = CreateRecorderSettings();
+        controllerSettings.AddRecorderSettings(recorder);
+        controllerSettings.ExitPlayMode = false;
+        _recorderWindow.SetRecorderControllerSettings(controllerSettings);
     }
 
     private RecorderWindow GetRecorderWindow()
