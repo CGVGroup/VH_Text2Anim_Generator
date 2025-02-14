@@ -1618,9 +1618,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _Animancer: {fileID: 8199460135184624717}
   clips: []
-  model: 0
-  scenario: 0
-  emotion: 0
+  model: 2
+  scenario: 2
+  emotion: 6
 --- !u!114 &8199460135184624717
 MonoBehaviour:
   m_ObjectHideFlags: 0

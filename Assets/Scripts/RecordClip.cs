@@ -19,7 +19,7 @@ public class RecordClip : MonoBehaviour
         All,
         Speaking,
         Standing,
-        Walking,
+        //Walking,
     }
     public enum Emotion
     {
@@ -29,6 +29,7 @@ public class RecordClip : MonoBehaviour
         Fear,
         Happiness,
         Sadness,
+        Surprise,
     }
     public enum Model
     {
@@ -41,7 +42,7 @@ public class RecordClip : MonoBehaviour
     public Scenario scenario;
     public Emotion emotion;
     private readonly string[] scenarios = { "Speaking", "Standing" };
-    private readonly string[] emotions = { "Anger", "Disgust", "Fear", "Happiness", "Sadness" };
+    private readonly string[] emotions = { "Anger", "Disgust", "Fear", "Happiness", "Sadness", "Surprise" };
     private int _scenarioIndex = 0;
     private int _emotionIndex = 0;
     public bool IsPlayingAnimation { get; private set; }
@@ -122,7 +123,10 @@ public class RecordClip : MonoBehaviour
                 if (isRecordingAllScenarios)
                 {
                     _scenarioIndex++;
-                    _emotionIndex = 0;
+                    if (emotion != Emotion.All)
+                        _emotionIndex = Array.IndexOf(emotions, emotion.ToString());
+                    else
+                        _emotionIndex = 0;
                 }
                 else
                     _scenarioIndex = scenarios.Length;
