@@ -19,7 +19,7 @@ public class RecordClip : MonoBehaviour
         All,
         Speaking,
         Standing,
-        //Walking,
+        Walking,
     }
     public enum Emotion
     {
@@ -41,7 +41,7 @@ public class RecordClip : MonoBehaviour
     public Model model;
     public Scenario scenario;
     public Emotion emotion;
-    private readonly string[] scenarios = { "Speaking", "Standing" };
+    private readonly string[] scenarios = { "Speaking", "Standing" , "Walking"};
     private readonly string[] emotions = { "Anger", "Disgust", "Fear", "Happiness", "Sadness", "Surprise" };
     private int _scenarioIndex = 0;
     private int _emotionIndex = 0;
