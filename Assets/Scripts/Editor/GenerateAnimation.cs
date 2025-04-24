@@ -45,7 +45,6 @@ public class GenerateAnimation : EditorWindow
     private float guidance_scale_style = 0.0f;
     private string pythonPath = "C:/Users/Ciro/AppData/Local/Programs/Python/Python310/python.exe";
     private string outputDir = "";
-    private string pythonServerPath = "C:/Users/Ciro/Desktop/Tesi/MasterThesis/Assets/Scripts/PythonScripts/server.py";
     private RequestSocket client;
     private bool isGenerating = false;
     private Process pythonServerProcess;
@@ -95,7 +94,6 @@ public class GenerateAnimation : EditorWindow
         {
             // add space
             PathGUI.OpenFileField("Python Path", ref pythonPath);
-            PathGUI.OpenFileField("Server Path", ref pythonServerPath);
         }
 
         //GUILayout.Space(10);
@@ -241,13 +239,13 @@ public class GenerateAnimation : EditorWindow
 
     private void StartPythonServer()
     {
-        var workingDirectory = pythonServerPath.Substring(0, pythonServerPath.LastIndexOf("/"));
+        string workingDirectory = Path.Combine(Application.dataPath, "Scripts/PythonScripts/");
         pythonServerProcess = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = pythonPath,
-                Arguments = pythonServerPath,
+                Arguments = workingDirectory + "server.py",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
