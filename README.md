@@ -4,10 +4,10 @@
    
 1. Clona la repo nella cartella desiderata
 
-```bash
-git clone https://github.com/ciroanni/MasterThesis
-cd MasterThesis
-```
+   ```bash
+   git clone https://github.com/ciroanni/MasterThesis
+   cd MasterThesis
+   ```
 
 2. Apri il progetto in Unity (versione usata Unity 6000.0.28f1)
    
@@ -21,11 +21,22 @@ cd MasterThesis
     ```
 5. Tutti i path e i comandi dei modelli sono nel file
    [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
-   I comandi non bisogna modificarli. Per quanta riguarda i percorsi dei vari
-   modelli, bisogna prima seguire le indicazioni che trovi sui github dei
-   singoli modelli in quanto non posso fornire i vari dataset/pesi dei modelli.
-
-   Nello specifico puoi clonare i modelli che trovi forkati nel mio account
-   github e seguire le indicazioni per il download dei pesi e del dataset, poi
+   I comandi non bisogna modificarli. Per quanto riguarda i modelli, puoi clonare quelli che trovi forkati nel mio account github e seguire le indicazioni nei readme dei singoli modelli per il download dei pesi e del dataset, poi
    modifica i path presenti nel [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
+
+   In particolare:
+   ### LADiff
+   ```bash
+   git clone -b master https://github.com/ciroanni/LADiff
+   ```
+   ### MDM
+   ```bash
+   git clone -b master https://github.com/ciroanni/motion-diffusion-model
+   ```
+   ### T2M-GPT
+   ```bash
+   git clone https://github.com/ciroanni/T2M-GPT
+   ```
+
+Per qualsiasi dubbio apri una issue qui o contattatemi.
 
