@@ -6,7 +6,8 @@
         "T2M-GPT": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\T2M-GPT",
         "LADiff": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\LADiff\\src",
         "SMooDi": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\SMooDi",
-        "AttT2M": "D:\\Tesi\\AttT2M"
+        "AttT2M": "D:\\Tesi\\AttT2M",
+        "Gesticulator": "C:\\Users\\Ciro\\Desktop\\Tesi\\Progetti\\gesticulator\\demo"
     },
     "model_commands": {
         "GMD": "conda activate gmd && python -m sample.generate --model_path ./save/unet_adazero_xl_x0_abs_proj10_fp16_clipwd_224/model000500000.pt --output_dir {output_dir} --text_prompt \"{prompt}\" --motion_length {motion_length} && python .\\smpl2bvh.py --input_file {output_dir}\\results.npy --output_dir {output_dir} --iterations {iterations} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_0.bvh && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_1.bvh && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_2.bvh",
@@ -24,7 +25,8 @@
         "MoMask": "conda activate momask && python gen_t2m.py --gpu_id 0 --ext {output_dir} --text_prompt \"{prompt}\" --iterations {iterations} && move {output_dir}\\animations\\0\\*.bvh {output_dir} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\results.bvh && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\results_ik.bvh",
         "LADiff": "conda activate ladiff && python demo.py --prompt \"{prompt}\" --out_dir {output_dir} && conda activate gmd && python .\\smpl2bvh.py --input_file {output_dir}\\results.npy --output_dir {output_dir} --iterations {iterations} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_0.bvh",
         "SMooDi": "conda activate omnicontrol && python demo_cmld.py --cfg ./configs/config_cmld_humanml3d.yaml --guidance_scale_style {gss} --cfg_assets ./configs/assets.yaml --prompt \"{prompt}\" --length 196 --output_dir {output_dir} && conda activate ladiff && python .\\smpl2bvh.py --input_file {output_dir}\\results.npy --output_dir {output_dir} --iterations {iterations} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_0.bvh", 
-        "AttT2M": "conda activate ladiff && python vis.py --out-dir {output_dir} --prompt \"{prompt}\" && python .\\smpl2bvh.py --input_file {output_dir}\\results.npy --output_dir {output_dir} --iterations {iterations} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_0.bvh"
+        "AttT2M": "conda activate ladiff && python vis.py --out-dir {output_dir} --prompt \"{prompt}\" && python .\\smpl2bvh.py --input_file {output_dir}\\results.npy --output_dir {output_dir} --iterations {iterations} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\anim_0.bvh",
+        "Gesticulator": "conda activate gesticulator && python demo.py --audio input/jeremy_howard.wav --text \"{prompt}\" --video_out {output_dir} && conda activate bvh2fbx && python .\\bvh2fbx\\convert_fbx.py -- {output_dir}\\temp.bvh"
     }
 }
 

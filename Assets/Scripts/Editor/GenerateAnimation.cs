@@ -36,7 +36,7 @@ public class GenerateAnimation : EditorWindow
     private int selectedModelIndex = 4;
     private int selectedStyleIndex = 0;
     private int selectedMovementIndex = 0;
-    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff", "SMooDi", "AttT2M" };
+    private string[] models = new string[] { "MoMask", "GMD", "MDM", "T2M-GPT", "LADiff", "SMooDi", "AttT2M", "Gesticulator" };
     //private string[] convertingOptions = new string[] { "IK Solver", "SMPLify" };
     private string[] styles = new string[100];
     private string[] movementType = new string[] { "Backwards Running", "Backwards Walking", "Forwards Running", "Forwards Walking", "Idling", "Sidestep Running", "Sidestep Walking", "Transitions" };

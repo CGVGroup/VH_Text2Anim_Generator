@@ -20,6 +20,7 @@ public class RecordClip : MonoBehaviour
         Speaking,
         Standing,
         Walking,
+        Waving,
     }
     public enum Emotion
     {
@@ -36,12 +37,13 @@ public class RecordClip : MonoBehaviour
         LADiff,
         MDM,
         T2MGPT,
+        Muse
     }
 
     public Model model;
     public Scenario scenario;
     public Emotion emotion;
-    private readonly string[] scenarios = { "Speaking", "Standing" , "Walking"};
+    private readonly string[] scenarios = { "Speaking", "Standing", "Walking", "Waving" };
     private readonly string[] emotions = { "Anger", "Disgust", "Fear", "Happiness", "Sadness", "Surprise" };
     private int _scenarioIndex = 0;
     private int _emotionIndex = 0;
@@ -158,8 +160,15 @@ public class RecordClip : MonoBehaviour
         UpdateRecorderSettings();
         _recorderWindow.StartRecording();
         AnimancerState state = _Animancer.Play(clips[0]);
-        state.ApplyAnimatorIK = true;
-        state.ApplyFootIK = true;
+        if (model != Model.Muse)
+        {
+            state.ApplyAnimatorIK = true;
+            state.ApplyFootIK = true;
+        }else
+        {
+            state.ApplyAnimatorIK = false;
+            state.ApplyFootIK = false;
+        }
         state.Events.OnEnd = OnAnimationEnd;
     }
 
