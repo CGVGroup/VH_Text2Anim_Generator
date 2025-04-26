@@ -12,8 +12,7 @@
    
 2. Apri il progetto in Unity (versione usata <strong>Unity 6000.0.28f1</strong>)
    
-4. Accedi al tab "AI generation"
-   Una volta aperto il progetto, troverai automaticamente il tab dedicato alla generazione AI.
+4. Accedi al tab "AI generation". Una volta aperto il progetto, troverai automaticamente il tab dedicato alla generazione AI.
 
 5. Modifica i working paths affinchè funzionino sul tuo pc.
 
@@ -46,5 +45,9 @@
    git clone https://github.com/ciroanni/T2M-GPT
    ```
 
+7. Oa puoi usare il tab "AI generation" selezionando il modello. Il risultato (sia in FBX che in .anim) verrà generato nella cartella:
+    ```
+    Assets/Resources/results
+    ```
 Per qualsiasi dubbio, apri una issue su GitHub o contattami direttamente.
 
