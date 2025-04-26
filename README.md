@@ -64,11 +64,17 @@
    git clone https://github.com/ciroanni/T2M-GPT
    ```
 
-6. Now you can use the “AI generation” tab by selecting the model. The result (both in FBX and .anim) will be generated in the folder:
+   If the folder "bvh2fbx" is empty or nonexistent after the clone command, run this:
+   ```bash
+   cd bvh2fbx
+   git clone https://github.com/ciroanni/bvh2fbx
+   ```
+
+7. Now you can use the “AI generation” tab by selecting the model. The result (both in FBX and .anim) will be generated in the folder:
     ```
     Assets/Resources/results
     ```
-7. The SampleScene in
+8. The SampleScene in
     ```
     Assets/Scenes
     ```
@@ -142,12 +148,18 @@
    ```bash
    git clone https://github.com/ciroanni/T2M-GPT
    ```
+   
+   Se la cartella "bvh2fbx" è vuota o non è presente dopo la clonazione delle repo dei modelli, esegui questo comando:
+   ```bash
+   cd bvh2fbx
+   git clone https://github.com/ciroanni/bvh2fbx
+   ```
 
-6. Ora puoi usare il tab "AI generation" selezionando il modello. Il risultato (sia in FBX che in .anim) verrà generato nella cartella:
+7. Ora puoi usare il tab "AI generation" selezionando il modello. Il risultato (sia in FBX che in .anim) verrà generato nella cartella:
     ```
     Assets/Resources/results
     ```
-7. La SampleScene presente in
+8. La SampleScene presente in
     ```
     Assets/Scenes
     ```
