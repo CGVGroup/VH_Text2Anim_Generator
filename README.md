@@ -1,6 +1,93 @@
 # [Animating Virtual Characters in Unity Using Generative AI: A Prompt-Based Approach](https://webthesis.biblio.polito.it/35302/)
  
 ### 🔧Come riprodurre il progetto 
+
+### ⚙️ Requirements
+
+- **Unity 6000.0.28f1** installed.
+- **Python** installed (recommended >= 3.10).
+- **CUDA-compatible NVIDIA GPU**.  
+  A GPU with CUDA support is required to run the motion generation models.
+
+---
+
+1. Clone the repository
+   Open your terminal in the desired folder and run:
+   
+   ```bash
+   git clone https://github.com/ciroanni/MasterThesis
+   cd MasterThesis
+   ```
+   
+2. Open the project in Unity (version <strong>Unity 6000.0.28f1</strong>)
+   
+3. Open the "AI generation" tab. The AI generation interface will appear automatically once the project is loaded.
+   <p>
+    <img src="Assets/Screenshots/tab_ai.png" />
+   </p>
+   <p>
+    <img src="Assets/Screenshots/open_tab_ai.png" />
+   </p>
+
+4. Make sure to adjust the paths to match your local setup.
+   
+   Specifically, set the correct Python executable in the Python Path field. Example (on Windows):
+    ```
+    C:/Users/<user name>/AppData/Local/Programs/Python/Python310/python.exe
+    ```
+   <p>
+    <img src="Assets/Screenshots/python_path.png" width="439" height="503" />
+   </p> 
+5. Configure models.
+   All commands and paths are located in
+   [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
+   - <strong> Do not modify the commands</strong>.
+   - To use the models:
+      - Clone the required models from my GitHub forks.
+      - Follow each model's README to download the pretrained weights and datasets.
+      - Then update the paths in [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json) accordingly.
+      - **Note**: running the models requires a CUDA-capable GPU.
+    
+
+   Supported models (so far):
+   ### LADiff
+   ```bash
+   git clone -b master https://github.com/ciroanni/LADiff
+   ```
+   ### MDM
+   ```bash
+   git clone -b master https://github.com/ciroanni/motion-diffusion-model
+   ```
+   ### T2M-GPT
+   ```bash
+   git clone https://github.com/ciroanni/T2M-GPT
+   ```
+
+6. Now you can use the “AI generation” tab by selecting the model. The result (both in FBX and .anim) will be generated in the folder:
+    ```
+    Assets/Resources/results
+    ```
+7. The SampleScene in
+    ```
+    Assets/Scenes
+    ```
+    is the scene used for the dataset videos used in the thesis work, and you can use it to visualize the results. In any case, the results are suitable for any humanoid rig.
+
+
+### If you have any questions, please open an issue or contact me directly.
+
+---
+
+### 🔧Come riprodurre il progetto 
+
+### ⚙️ Prerequisiti
+
+- **Unity 6000.0.28f1** installato.
+- **Python** installato (consigliato >= 3.10).
+- **Scheda grafica NVIDIA compatibile con CUDA**.  
+  È necessario avere una GPU con supporto a CUDA per poter eseguire i modelli di generazione del movimento.
+
+---
    
 1. Clona la repository
    Apri il terminale nella cartella dove vuoi salvare il progetto e lancia
@@ -13,23 +100,33 @@
 2. Apri il progetto in Unity (versione usata <strong>Unity 6000.0.28f1</strong>)
    
 3. Accedi al tab "AI generation". Una volta aperto il progetto, troverai automaticamente il tab dedicato alla generazione AI.
+   <p>
+    <img src="Assets/Screenshots/tab_ai.png" />
+   </p>
+   <p>
+    <img src="Assets/Screenshots/open_tab_ai.png" />
+   </p>
 
 4. Modifica i working paths affinchè funzionino sul tuo pc.
-
+   
    In particolare in Python Path dovrai mettere l'eseguibile della versione di python installata sul tuo pc.
    Ad esempio, un percorso (in Windows) valido potrebbe essere:
     ```
     C:/Users/<nome utente>/AppData/Local/Programs/Python/Python310/python.exe
     ```
-    
-5. Configura i modelli
+   <p>
+    <img src="Assets/Screenshots/python_path.png" width="439" height="503" />
+   </p> 
+5. Configura i modelli.
    Tutti i path e i comandi dei modelli sono nel file
    [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
-   - I comandi non bisogna modificarli.
-   - Per utilizzare i modelli, puoi clonare i fork presenti nel mio profilo GitHub.
-   - Segui le istruzioni nei README dei singoli repository per scaricare pesi e dataset.
-   - Poi aggiorna i path nel in [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json) base alla tua configurazione locale.
-   
+   - **Non bisogna modificare i comandi**.
+   - Per usare i modelli:
+     - Per utilizzare i modelli, puoi clonare i fork presenti nel mio profilo GitHub.
+     - Segui le istruzioni nei README dei singoli repository per scaricare pesi e dataset.
+     - Poi aggiorna i path nel in [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json) base alla tua configurazione locale.
+     - **Ricorda**: l'esecuzione dei modelli richiede una GPU compatibile CUDA.
+     
 
    Modelli supportati al momento:
    ### LADiff
@@ -57,4 +154,6 @@
 
 
 ### Per qualsiasi dubbio, apri una issue su GitHub o contattami direttamente.
+
+
 
