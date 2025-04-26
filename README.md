@@ -1,5 +1,6 @@
 # [Animating Virtual Characters in Unity Using Generative AI: A Prompt-Based Approach](https://webthesis.biblio.polito.it/35302/)
- 
+
+## English version
 ### 🔧How to reproduce the project 
 
 ### ⚙️ Requirements
@@ -77,7 +78,7 @@
 ### If you have any questions, please open an issue or contact me directly.
 
 ---
-
+## Italian version
 ### 🔧Come riprodurre il progetto 
 
 ### ⚙️ Prerequisiti
