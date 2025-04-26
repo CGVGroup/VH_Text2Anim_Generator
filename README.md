@@ -45,7 +45,7 @@
    - <strong> Do not modify the commands</strong>.
    - To use the models:
       - Clone the required models from my GitHub forks.
-      - Follow each model's README to download the pretrained weights and datasets.
+      - Follow each model's instructions in their repository to download the pretrained weights and datasets.
       - Then update the paths in [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json) accordingly.
       - **Note**: running the models requires a CUDA-capable GPU.
     
@@ -124,7 +124,7 @@
    - **Non bisogna modificare i comandi**.
    - Per usare i modelli:
      - Per utilizzare i modelli, puoi clonare i fork presenti nel mio profilo GitHub.
-     - Segui le istruzioni nei README dei singoli repository per scaricare pesi e dataset.
+     - Segui le istruzioni dei modelli presenti nelle loro repository per scaricare pesi e dataset.
      - Poi aggiorna i path nel in [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json) base alla tua configurazione locale.
      - **Ricorda**: l'esecuzione dei modelli richiede una GPU compatibile CUDA.
      
