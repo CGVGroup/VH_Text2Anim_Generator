@@ -12,9 +12,9 @@
    
 2. Apri il progetto in Unity (versione usata <strong>Unity 6000.0.28f1</strong>)
    
-4. Accedi al tab "AI generation". Una volta aperto il progetto, troverai automaticamente il tab dedicato alla generazione AI.
+3. Accedi al tab "AI generation". Una volta aperto il progetto, troverai automaticamente il tab dedicato alla generazione AI.
 
-5. Modifica i working paths affinchè funzionino sul tuo pc.
+4. Modifica i working paths affinchè funzionino sul tuo pc.
 
    In particolare in Python Path dovrai mettere l'eseguibile della versione di python installata sul tuo pc.
    Ad esempio, un percorso (in Windows) valido potrebbe essere:
@@ -22,7 +22,7 @@
     C:/Users/<nome utente>/AppData/Local/Programs/Python/Python310/python.exe
     ```
     
-6. Configura i modelli
+5. Configura i modelli
    Tutti i path e i comandi dei modelli sono nel file
    [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
    - I comandi non bisogna modificarli.
@@ -45,9 +45,16 @@
    git clone https://github.com/ciroanni/T2M-GPT
    ```
 
-7. Oa puoi usare il tab "AI generation" selezionando il modello. Il risultato (sia in FBX che in .anim) verrà generato nella cartella:
+6. Ora puoi usare il tab "AI generation" selezionando il modello. Il risultato (sia in FBX che in .anim) verrà generato nella cartella:
     ```
     Assets/Resources/results
     ```
-Per qualsiasi dubbio, apri una issue su GitHub o contattami direttamente.
+7. La SampleScene presente in
+    ```
+    Assets/Scenes
+    ```
+    è la scena utilizzata per i video del dataset usato nel lavoro di tesi e puoi usarla per visualizzare i risultati. In ogni caso i risultati sono adatti per qualsiasi humanoid.
+
+
+### Per qualsiasi dubbio, apri una issue su GitHub o contattami direttamente.
 
