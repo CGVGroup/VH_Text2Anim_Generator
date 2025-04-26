@@ -50,16 +50,4 @@
     Assets/Resources/results
     ```
 Per qualsiasi dubbio, apri una issue su GitHub o contattami direttamente.
-5. Tutti i path e i comandi dei modelli sono nel file
-   [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
-   I comandi non bisogna modificarli. Per quanta riguarda i percorsi dei vari
-   modelli, bisogna prima seguire le indicazioni che trovi sui github dei
-   singoli modelli in quanto non posso fornire i vari dataset/pesi dei modelli.
-
-   Nello specifico puoi clonare i modelli che trovi forkati nel mio account
-   github e seguire le indicazioni per il download dei pesi e del dataset, poi
-   modifica i path presenti nel [config.json](https://github.com/ciroanni/MasterThesis/blob/main/Assets/Scripts/PythonScripts/config.json).
-
-
-
 
