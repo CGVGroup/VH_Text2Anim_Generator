@@ -67,14 +67,12 @@
    If the folder "bvh2fbx" is empty or nonexistent after the clone command, run this (in the model folder):
    ```bash
    mkdir bvh2fbx #if there is no folder 
-   cd bvh2fbx
    git clone https://github.com/ciroanni/bvh2fbx
    ```
 
    If the folder "Motion" is empty or nonexistent after the clone command, run this (in the model folder):
    ```bash
    mkdir Motion #if there is no folder
-   cd Motion
    git clone https://github.com/ciroanni/Motion
    ```
 
@@ -160,7 +158,6 @@
    Se la cartella "bvh2fbx" è vuota o non è presente dopo la clonazione delle repo dei modelli, esegui questo comando (nella cartella del modello):
    ```bash
    mkdir bvh2fbx #se non esiste
-   cd bvh2fbx
    git clone https://github.com/ciroanni/bvh2fbx
    ```
 
@@ -168,7 +165,6 @@
    Se la cartella "Motion" è vuota o non è presente dopo la clonazione delle repo dei modelli, esegui questo comando (nella cartella del modello):
    ```bash
    mkdir Motion #se non esiste
-   cd Motion
    git clone https://github.com/ciroanni/Motion
    ```
 
