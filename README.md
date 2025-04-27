@@ -64,10 +64,18 @@
    git clone https://github.com/ciroanni/T2M-GPT
    ```
 
-   If the folder "bvh2fbx" is empty or nonexistent after the clone command, run this:
+   If the folder "bvh2fbx" is empty or nonexistent after the clone command, run this (in the model folder):
    ```bash
+   mkdir bvh2fbx #if there is no folder 
    cd bvh2fbx
    git clone https://github.com/ciroanni/bvh2fbx
+   ```
+
+   If the folder "Motion" is empty or nonexistent after the clone command, run this (in the model folder):
+   ```bash
+   mkdir Motion #if there is no folder
+   cd Motion
+   git clone https://github.com/ciroanni/Motion
    ```
 
 7. Now you can use the “AI generation” tab by selecting the model. The result (both in FBX and .anim) will be generated in the folder:
@@ -149,10 +157,19 @@
    git clone https://github.com/ciroanni/T2M-GPT
    ```
    
-   Se la cartella "bvh2fbx" è vuota o non è presente dopo la clonazione delle repo dei modelli, esegui questo comando:
+   Se la cartella "bvh2fbx" è vuota o non è presente dopo la clonazione delle repo dei modelli, esegui questo comando (nella cartella del modello):
    ```bash
+   mkdir bvh2fbx #se non esiste
    cd bvh2fbx
    git clone https://github.com/ciroanni/bvh2fbx
+   ```
+
+   
+   Se la cartella "Motion" è vuota o non è presente dopo la clonazione delle repo dei modelli, esegui questo comando (nella cartella del modello):
+   ```bash
+   mkdir Motion #se non esiste
+   cd Motion
+   git clone https://github.com/ciroanni/Motion
    ```
 
 7. Ora puoi usare il tab "AI generation" selezionando il modello. Il risultato (sia in FBX che in .anim) verrà generato nella cartella:
