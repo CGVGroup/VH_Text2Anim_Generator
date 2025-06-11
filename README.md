@@ -83,4 +83,4 @@
 
 
 ### 📄Publications
-- Annicchiarico, Ciro. Animating Virtual Characters in Unity Using Generative AI: A Prompt-Based Approach. Diss. Politecnico di Torino, 2025.
+- _Annicchiarico, Ciro. Animating Virtual Characters in Unity Using Generative AI: A Prompt-Based Approach. Diss. Politecnico di Torino, 2025._
