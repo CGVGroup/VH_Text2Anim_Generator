@@ -82,4 +82,5 @@
     is the scene used for the dataset videos used in the thesis work, and you can use it to visualize the results. In any case, the results are suitable for any humanoid rig.
 
 
-
+### 📄Publications
+- Annicchiarico, Ciro. Animating Virtual Characters in Unity Using Generative AI: A Prompt-Based Approach. Diss. Politecnico di Torino, 2025.
